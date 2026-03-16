@@ -29,7 +29,7 @@ function Register() {
     try {
       console.log("New user data: ", newUser);
       let response = await axios.post(
-        "http://localhost:3000/common-api/register",
+        "http://localhost:3000/instructor-api/users",
         newUser,
         { withCredentials: true },
       );
@@ -64,26 +64,6 @@ function Register() {
       <h1 className="text-2xl mb-2">User Registration Form </h1>
       <div className=" p-4">
         <form onSubmit={handleSubmit(onRegister)}>
-          <div className="mb-3 ">
-            <label className="mr-3">Role:</label>
-            <input
-              type="radio"
-              value="author"
-              {...register("role", { required: true })}
-              className="mr-1"
-            />
-            Author
-            <input
-              type="radio"
-              value="user"
-              {...register("role", { required: true })}
-              className="mx-1"
-            />
-            User
-            {errors.role?.type === "required" && (
-              <p className="text-red-500">Role is required</p>
-            )}
-          </div>
           <div className="mb-3 ">
             <input
               type="text"
