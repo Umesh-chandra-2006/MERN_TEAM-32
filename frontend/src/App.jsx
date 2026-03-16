@@ -4,6 +4,9 @@ import Home from "./components/Home";
 import Register from "./components/Register";
 import Login from "./components/Login";
 import { Toaster } from "react-hot-toast";
+import UserDashboard from "./components/UserDashboard";
+import InstructorDashboard from "./components/InstructorDashboard";
+import AdminDashboard from "./components/AdminDashboard";
 
 function App() {
   const routerObj = createBrowserRouter([
@@ -23,6 +26,18 @@ function App() {
           path: "login",
           element: <Login />,
         },
+        {
+          path: "user-dashboard",
+          element: <UserDashboard />,
+        },
+        {
+          path: "instructor-dashboard",
+          element: <InstructorDashboard />,
+        },
+        {
+          path: "admin-dashboard",
+          element: <AdminDashboard />,
+        },
       ],
     },
   ]);
@@ -30,7 +45,6 @@ function App() {
   return (
     <>
       <Toaster position="top-center" reverseOrder={false} />
-
       <RouterProvider router={routerObj} />
     </>
   );
