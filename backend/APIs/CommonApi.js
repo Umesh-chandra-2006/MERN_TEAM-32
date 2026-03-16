@@ -1,8 +1,9 @@
-import exp from "express";
+import express from "express";
 import { authenticate } from "../services/authService.js";
 import { UserTypeModel } from "../models/UserModel.js";
+import { verifyToken } from "../middlewares/verifyToken.js";
 import bcrypt from "bcryptjs";
-export const commonRouter = exp.Router();
+export const commonRouter = express.Router();
 
 //login
 commonRouter.post("/login", async (req, res) => {
@@ -32,17 +33,32 @@ commonRouter.get("/logout", (req, res) => {
   res.status(200).json({ message: "Logged out successfully" });
 });
 
+//Check authentication status
+commonRouter.get("/get-user", verifyToken("STUDENT", "INSTRUCTOR", "ADMIN"), async (req, res) => {
+  try {
+    const user = await UserTypeModel.findById(req.user.userId).select("-password");
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    res.status(200).json({ message: "User found", payload: user });
+  } catch (err) {
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
 //Change password(Protected route)
-commonRouter.put("/change-password", async (req, res) => {
+commonRouter.put("/change-password", verifyToken("STUDENT", "INSTRUCTOR", "ADMIN"), async (req, res) => {
   //get current password and new password
-  const { role, email, currentPassword, newPassword } = req.body;
+  const { currentPassword, newPassword } = req.body;
+  const userId = req.user.userId;
+
   // Prevent same password
   if (currentPassword === newPassword) {
     return res.status(400).json({ message: "newPassword must be different from currentPassword" });
   }
 
-  // Find user by email (works for USER, AUTHOR, ADMIN — all same collection)
-  const account = await UserTypeModel.findOne({ email });
+  // Find user by id
+  const account = await UserTypeModel.findById(userId);
   if (!account) {
     return res.status(404).json({ message: "Account not found" });
   }

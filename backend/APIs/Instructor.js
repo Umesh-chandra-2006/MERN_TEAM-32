@@ -1,18 +1,18 @@
-import exp from "express";
+import express from "express";
 import { register } from "../services/authService.js";
 import { verifyToken } from "../middlewares/verifyToken.js";
 import { CourseTypeModel } from "../models/CourseModel.js";
 
-export const InstructorApp = exp.Router();
+export const InstructorApp = express.Router();
 
-//Register author(public)
+//Register instructor(public)
 InstructorApp.post("/users", async (req, res) => {
   //get user obj from req
   let userObj = req.body;
   //call register
   const newUserObj = await register({ ...userObj, role: "INSTRUCTOR" });
   //send res
-  res.status(201).json({ message: "authroe created", payload: newUserObj });
+  res.status(201).json({ message: "instructor created", payload: newUserObj });
 });
 
 //Create course(protected route)

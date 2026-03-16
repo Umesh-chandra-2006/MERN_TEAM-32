@@ -24,7 +24,7 @@ const CourseSchema = new Schema(
     instructor: {
       type: Schema.Types.ObjectId,
       ref: "user",
-      // required: true,
+      required: true,
     },
 
     title: {
@@ -83,3 +83,5 @@ const CourseSchema = new Schema(
 );
 
 export const CourseTypeModel = model("course", CourseSchema);
+
+

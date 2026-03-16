@@ -1,4 +1,4 @@
-import exp from "express";
+import express from "express";
 import { connect } from "mongoose";
 import { config } from "dotenv";
 import cors from "cors";
@@ -10,11 +10,11 @@ import { InstructorApp } from "./APIs/Instructor.js";
 config(); //process.env
 
 //Create express application
-const app = exp();
+const app = express();
 //use cors middleware
 app.use(cors({ origin: ["http://localhost:5173"] , credentials: true}));
 //add body parser middleware
-app.use(exp.json());
+app.use(express.json());
 //add cookie parser middleware
 app.use(cookieParser());
 

@@ -7,8 +7,16 @@ import { Toaster } from "react-hot-toast";
 import UserDashboard from "./components/UserDashboard";
 import InstructorDashboard from "./components/InstructorDashboard";
 import AdminDashboard from "./components/AdminDashboard";
+import { useAuth } from "./store/useAuth";
+import { useEffect } from "react";
 
 function App() {
+  const checkAuth = useAuth((state) => state.checkAuth);
+
+  useEffect(() => {
+    checkAuth();
+  }, [checkAuth]);
+
   const routerObj = createBrowserRouter([
     {
       path: "/",

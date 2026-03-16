@@ -2,145 +2,126 @@ import { useForm } from "react-hook-form";
 import { useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router";
-import {
-  formCard,
-  formGroup,
-  labelClass,
-  inputClass,
-  submitBtn,
-  formTitle,
-} from "../styles/common";
+import { toast } from "react-hot-toast";
 
 function Register() {
   const {
     register,
     handleSubmit,
-    //setError,
     formState: { errors },
-  } = useForm();
+  } = useForm({
+    defaultValues: {
+      role: "STUDENT"
+    }
+  });
 
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-
   const navigate = useNavigate();
 
   const onRegister = async (newUser) => {
     setLoading(true);
     try {
-      console.log("New user data: ", newUser);
+      const apiPath = newUser.role === "STUDENT" ? "student-api" : "instructor-api";
       let response = await axios.post(
-        "http://localhost:3000/instructor-api/users",
-        newUser,
-        { withCredentials: true },
+        `http://localhost:3000/${apiPath}/users`,
+        newUser
       );
-      console.log("Response object is: ", response);
-
-      let res = await response.data;
 
       if (response.status === 201) {
-        //User created successfully, navigate to users page
+        toast.success("Registration successful! Please login.");
         navigate("/login");
-      } else {
-        setError("Failed to add user. Please check the input and try again.");
-        console.log(response);
       }
     } catch (error) {
-      setError("Failed to add user. Please try again.");
+      const msg = error.response?.data?.message || "Registration failed. Please try again.";
+      toast.error(msg);
       console.error("Error during registration: ", error);
     } finally {
       setLoading(false);
     }
   };
 
-  if (loading) {
-    return <div className="text-center p-4">Adding user...</div>;
-  }
-  if (error !== null) {
-    return <div className="text-center p-4 text-red-500">{error}</div>;
-  }
-
   return (
-    <div className="mt-15 p-4  w-96 mx-auto text-center">
-      <h1 className="text-2xl mb-2">User Registration Form </h1>
-      <div className=" p-4">
-        <form onSubmit={handleSubmit(onRegister)}>
-          <div className="mb-3 ">
+    <div className="mt-15 p-4 w-96 mx-auto text-center">
+      <h1 className="text-2xl mb-4 font-semibold">Registration Form</h1>
+      <div className="p-6 bg-white shadow-md rounded-lg border border-gray-200">
+        <form onSubmit={handleSubmit(onRegister)} className="space-y-4">
+          {/* Role Selection */}
+          <div className="flex justify-center gap-4 mb-4">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                value="STUDENT"
+                {...register("role")}
+                className="w-4 h-4 text-blue-600"
+              />
+              <span className="text-gray-700">Student</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                value="INSTRUCTOR"
+                {...register("role")}
+                className="w-4 h-4 text-blue-600"
+              />
+              <span className="text-gray-700">Instructor</span>
+            </label>
+          </div>
+
+          <div className="space-y-1 text-left">
             <input
               type="text"
-              {...register("firstName", {
-                required: true,
-                minLength: 4,
-                maxLength: 6,
-              })}
-              placeholder="firstName"
-              className="bg-gray-300 p-2"
+              {...register("firstName", { required: "First name is required", minLength: { value: 3, message: "Min length 3" } })}
+              placeholder="First Name"
+              className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
-            {errors.firstName?.type === "required" && (
-              <p className="text-red-500">First Name required</p>
-            )}
-            {errors.firstName?.type === "minLength" && (
-              <p className="text-red-500">Min Length is 4</p>
-            )}
-            {errors.firstName?.type === "maxLength" && (
-              <p className="text-red-500">Max Length is 6</p>
-            )}
+            {errors.firstName && <p className="text-red-500 text-xs">{errors.firstName.message}</p>}
           </div>
-          <div className="mb-3">
+
+          <div className="space-y-1 text-left">
             <input
               type="text"
-              {...register("lastName", {
-                required: true,
-                minLength: 4,
-                maxLength: 6,
-              })}
-              placeholder="lastName"
-              className="bg-gray-300 p-2"
+              {...register("lastName", { required: "Last name is required", minLength: { value: 3, message: "Min length 3" } })}
+              placeholder="Last Name"
+              className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
-            {errors.lastName?.type === "required" && (
-              <p className="text-red-500">Last Name required</p>
-            )}
-            {errors.lastName?.type === "minLength" && (
-              <p className="text-red-500">Min Length is 4</p>
-            )}
-            {errors.lastName?.type === "maxLength" && (
-              <p className="text-red-500">Max Length is 6</p>
-            )}
+            {errors.lastName && <p className="text-red-500 text-xs">{errors.lastName.message}</p>}
           </div>
-          <div className="mb-3">
+
+          <div className="space-y-1 text-left">
             <input
               type="email"
-              {...register("email", { required: true })}
+              {...register("email", { required: "Email is required" })}
               placeholder="Email"
-              className="bg-gray-300 p-2"
+              className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
-            {errors.email?.type === "required" && (
-              <p className="text-red-500">Email required</p>
-            )}
+            {errors.email && <p className="text-red-500 text-xs">{errors.email.message}</p>}
           </div>
-          <div className="mb-3">
+
+          <div className="space-y-1 text-left">
             <input
               type="password"
-              {...register("password", { required: true })}
-              placeholder="password"
-              className="bg-gray-300 p-2"
+              {...register("password", { required: "Password is required", minLength: { value: 6, message: "Min length 6" } })}
+              placeholder="Password"
+              className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
-            {errors.password?.type === "required" && (
-              <p className="text-red-500">password required</p>
-            )}
+            {errors.password && <p className="text-red-500 text-xs">{errors.password.message}</p>}
           </div>
-          <div className="mb-3">
+
+          <div className="space-y-1 text-left">
             <input
               type="text"
               {...register("profileImageUrl")}
               placeholder="Profile Image URL"
-              className="bg-gray-300 p-2 "
+              className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
+
           <button
             type="submit"
-            className="border-2 p-2 rounded-md bg-blue-500 text-white"
+            disabled={loading}
+            className="w-full py-2 bg-blue-600 text-white rounded font-medium hover:bg-blue-700 disabled:bg-blue-300 transition-colors"
           >
-            Register
+            {loading ? "Registering..." : "Register"}
           </button>
         </form>
       </div>
@@ -149,36 +130,3 @@ function Register() {
 }
 
 export default Register;
-
-/*
-const createUser = async (newUser) => {
-    setLoading(true);
-    try {
-      const response = await fetch("http://localhost:5000/api/users", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(newUser),
-      });
-      if (response.status === 201)
-        //User created successfully, navigate to users page
-        navigate("/users");
-      else
-        setError("Failed to add user. Please check the input and try again.");
-    } catch (error) {
-      console.log(response);
-      setError("Failed to add user. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (loading) {
-    return <div className="text-center p-4">Adding user...</div>;
-  }
-  if (error !== null) {
-    return <div className="text-center p-4 text-red-500">{error}</div>;
-  }
-
-*/

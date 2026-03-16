@@ -12,13 +12,13 @@ export const useAuth = create((set) => ({
     //make api call
     try {
       let response = await axios.post(
-        "http://localhost:3000/common-api/login ",
+        "http://localhost:3000/common-api/login",
         userObj,
         { withCredentials: true },
       );
       console.log("Response object is: ", response);
 
-      let res = await response.data;
+      let res = response.data;
 
       set({
         isAuthenticated: true,
@@ -26,10 +26,10 @@ export const useAuth = create((set) => ({
         error: null,
         currentUser: res.payload,
       });
-      console.log("Current user in state: ", useAuth.getState().currentUser);
     } catch (error) {
+      const errorMessage = error.response?.data?.message || "Failed to Login. Please try again.";
       set({
-        error: "Failed to Login. Please try again.",
+        error: errorMessage,
         loading: false,
         isAuthenticated: false,
         currentUser: null,
@@ -57,6 +57,27 @@ export const useAuth = create((set) => ({
         loading: false,
       });
       console.error("Error during Logout: ", error);
+    }
+  },
+  checkAuth: async () => {
+    set({ loading: true });
+    try {
+      let response = await axios.get(
+        "http://localhost:3000/common-api/get-user",
+        { withCredentials: true }
+      );
+      set({
+        isAuthenticated: true,
+        currentUser: response.data.payload,
+        loading: false,
+        error: null,
+      });
+    } catch (error) {
+      set({
+        isAuthenticated: false,
+        currentUser: null,
+        loading: false,
+      });
     }
   },
 }));

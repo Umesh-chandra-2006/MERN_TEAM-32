@@ -1,11 +1,10 @@
-import exp from "express";
-import { register, authenticate } from "../services/authService.js";
+import express from "express";
+import { register } from "../services/authService.js";
 
 import { verifyToken } from "../middlewares/verifyToken.js";
-import { UserTypeModel } from "../models/UserModel.js";
 import { CourseTypeModel } from "../models/CourseModel.js";
 
-export const studentRoute = exp.Router();
+export const studentRoute = express.Router();
 
 //Register user
 studentRoute.post("/users", async (req, res) => {
@@ -18,31 +17,28 @@ studentRoute.post("/users", async (req, res) => {
 //Read all courses(protected route)
 studentRoute.get("/courses", verifyToken("STUDENT"), async (req, res) => {
   //read courses of all authors which are active
-  const courses = await CourseTypeModel.find({ isArticleActive: true });
+  const courses = await CourseTypeModel.find({ isCourseActive: true });
   //send res
   res.status(200).json({ message: "all courses", payload: courses });
 });
 
-//Add comment to an article(protected route)
-studentRoute.put("/articles", verifyToken("STUDENT"), async (req, res) => {
-  //get comment obj from req
-  const { user, articleId, comment } = req.body;
-  //check user(req.user)
-  console.log(req.user);
-  if (user !== req.user.userId) {
+//Add review to a course(protected route)
+studentRoute.put("/courses/reviews", verifyToken("STUDENT"), async (req, res) => {
+  const { userId, courseId, rating, comment } = req.body;
+  
+  if (userId !== req.user.userId) {
     return res.status(403).json({ message: "Forbidden" });
   }
-  //find artcleby id and update
-  let articleWithComment = await ArticleModel.findOneAndUpdate(
-    { _id: articleId, isArticleActive: true },
-    { $push: { comments: { user, comment } } },
+
+  let updatedCourse = await CourseTypeModel.findOneAndUpdate(
+    { _id: courseId, isCourseActive: true },
+    { $push: { reviews: { user: userId, rating, comment } } },
     { new: true, runValidators: true },
   );
 
-  //if article not found
-  if (!articleWithComment) {
-    return res.status(404).json({ message: "Article not found" });
+  if (!updatedCourse) {
+    return res.status(404).json({ message: "Course not found" });
   }
-  //send res
-  res.status(200).json({ message: "comment added successfully", payload: articleWithComment });
+
+  res.status(200).json({ message: "Review added successfully", payload: updatedCourse });
 });
