@@ -1,6 +1,9 @@
 import { createBrowserRouter, RouterProvider } from "react-router";
 import RootLayout from "./components/RootLayout";
 import Home from "./components/Home";
+import Register from "./components/Register";
+import Login from "./components/Login";
+import { Toaster } from "react-hot-toast";
 
 function App() {
   const routerObj = createBrowserRouter([
@@ -26,6 +29,8 @@ function App() {
 
   return (
     <>
+      <Toaster position="top-center" reverseOrder={false} />
+
       <RouterProvider router={routerObj} />
     </>
   );
