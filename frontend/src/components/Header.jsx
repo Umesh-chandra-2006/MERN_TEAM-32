@@ -9,7 +9,7 @@ function Header() {
     <div className=" flex justify-between items-center bg-gray-700 px-10 py-2">
       <img
         width="85px"
-        src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR5I7ARthR47U9r6rQr0j3crdCBwrdO87bLMw&s"
+        src="./assets/app-logo.jpeg"
         alt="logo"
         className="rounded-[50px]"
       />
