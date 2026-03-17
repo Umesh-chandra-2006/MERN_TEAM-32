@@ -1,0 +1,63 @@
+###reg
+POST http://localhost:3000/instructor-api/users
+Content-Type: application/json
+
+{
+  "firstName": "John",
+  "lastName": "Doe",
+  "email": "john.instructor@gmail.com",
+  "password": "123456"
+}
+
+###login
+POST http://localhost:3000/instructor-api/login
+Content-Type: application/json
+
+{
+  "email": "john.instructor@gmail.com",
+  "password": "123456"
+}
+
+###logout
+POST http://localhost:3000/instructor-api/logout
+
+###create course
+POST http://localhost:3000/instructor-api/courses
+Content-Type: application/json
+
+{
+  "title": "MERN Stack Course",
+  "category": "Web Development",
+  "description": "Complete MERN course",
+  "price": 999
+}
+
+###read all courses of loged in instructor
+GET http://localhost:3000/instructor-api/courses
+
+###update course
+PUT http://localhost:3000/instructor-api/courses/69b8f6d4d4ce90f91bcfc89c
+Content-Type: application/json
+
+{
+  "title": "Advanced MERN Course",
+  "price": 1499
+}
+
+###delete course
+PATCH http://localhost:3000/instructor-api/courses/69b8f6d4d4ce90f91bcfc89c/status
+Content-Type: application/json
+
+{
+  "isCourseActive": true
+}
+
+###add lectures
+POST http://localhost:3000/instructor-api/courses/69b8f6d4d4ce90f91bcfc89c/lectures
+Content-Type: application/json
+
+{
+  "title": "Introduction",
+  "duration": 10,
+  "order": 1
+}

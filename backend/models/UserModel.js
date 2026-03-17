@@ -47,6 +47,6 @@ const userSchema = new Schema(
 );
 
 // Indexing for faster login lookups
-userSchema.index({ email: 1 });
+// userSchema.index({ email: 1 });
 
 export const UserTypeModel = model("user", userSchema);

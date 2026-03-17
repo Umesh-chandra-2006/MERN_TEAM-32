@@ -1,0 +1,46 @@
+###regis
+POST http://localhost:3000/student-api/register
+Content-Type: application/json
+
+{
+  "firstName": "Ravi",
+  "lastName": "Kumar",
+  "email": "ravi123@gmail.com",
+  "password": "123456"
+}
+
+###login
+POST http://localhost:3000/student-api/login
+Content-Type: application/json
+
+{
+  "email": "ravi123@gmail.com",
+  "password": "123456"
+}
+
+###logout
+POST http://localhost:3000/student-api/logout
+
+
+###get all courses
+GET http://localhost:3000/student-api/courses
+
+
+###get single course
+GET http://localhost:3000/student-api/courses/69b7d0cabe06f5eb8d031f55
+
+###enroll
+POST http://localhost:3000/student-api/courses/69b7d0cabe06f5eb8d031f55/enroll
+
+###my courses
+GET http://localhost:3000/student-api/my-courses
+
+
+###add review
+PUT http://localhost:3000/student-api/courses/69b7d0cabe06f5eb8d031f55/reviews
+Content-Type: application/json
+
+{
+  "rating": 5,
+  "comment": "Excellent course!"
+}

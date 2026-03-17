@@ -1,89 +1,279 @@
-import express from "express";
-import { register } from "../services/authService.js";
+import exp from "express";
+import multer from "multer";
+import fs from "fs";
+import mongoose from "mongoose";
+
+import { register, authenticate } from "../services/authService.js";
 import { verifyToken } from "../middlewares/verifyToken.js";
 import { CourseTypeModel } from "../models/CourseModel.js";
-import multer from "multer";
-import path from "path";
-import fs from "fs";
 import { processVideoToHLS } from "../services/videoService.js";
 
-export const InstructorApp = express.Router();
+export const InstructorApp = exp.Router();
 
-// Multer setup for temporary file storage
+// ================= MULTER =================
 const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    const uploadPath = "uploads/raw/";
-    if (!fs.existsSync(uploadPath)) {
-      fs.mkdirSync(uploadPath, { recursive: true });
-    }
-    cb(null, uploadPath);
+  destination: (req, file, cb) => {
+    const path = "uploads/raw/";
+    if (!fs.existsSync(path)) fs.mkdirSync(path, { recursive: true });
+    cb(null, path);
   },
-  filename: function (req, file, cb) {
+  filename: (req, file, cb) => {
     cb(null, `${Date.now()}-${file.originalname}`);
   },
 });
+const upload = multer({ storage });
 
-const upload = multer({ storage: storage });
+// ================= REGISTER =================
+InstructorApp.post("/users", async (req, res, next) => {
+  try {
+    const newUser = await register({
+      ...req.body,
+      role: "INSTRUCTOR",
+    });
 
-// Register instructor
-InstructorApp.post("/users", async (req, res) => {
-  let userObj = req.body;
-  const newUserObj = await register({ ...userObj, role: "INSTRUCTOR" });
-  res.status(201).json({ message: "instructor created", payload: newUserObj });
+    res.status(201).json({
+      message: "Instructor created successfully",
+      payload: newUser,
+    });
+  } catch (err) {
+    next(err);
+  }
 });
 
-// Create course
-InstructorApp.post("/courses", verifyToken("INSTRUCTOR"), async (req, res) => {
-  let course = req.body;
-  course.instructor = req.user.userId; // Securely set instructor from token
+// ================= LOGIN =================
+InstructorApp.post("/login", async (req, res, next) => {
+  try {
+    const { token, user } = await authenticate(req.body);
 
-  let newCourseDoc = new CourseTypeModel(course);
-  let createdCourseDoc = await newCourseDoc.save();
-  res.status(201).json({ message: "course created", payload: createdCourseDoc });
+    res.cookie("token", token, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: false,
+    });
+
+    res.status(200).json({
+      message: "Login successful",
+      payload: user,
+    });
+  } catch (err) {
+    next(err);
+  }
 });
 
-// Get courses by instructor (Uses denormalized stats for speed)
-InstructorApp.get("/courses", verifyToken("INSTRUCTOR"), async (req, res) => {
-  const instructorId = req.user.userId;
-  const courses = await CourseTypeModel.find({ instructor: instructorId })
-    .sort({ createdAt: -1 });
-  res.status(200).json({ message: "instructor courses", payload: courses });
+// ================= LOGOUT =================
+InstructorApp.post("/logout", verifyToken("INSTRUCTOR"), (req, res) => {
+  res.clearCookie("token");
+  res.status(200).json({ message: "Logged out successfully" });
 });
 
-// Upload and transcode video for a lecture
+// ================= CREATE COURSE =================
+InstructorApp.post(
+  "/courses",
+  verifyToken("INSTRUCTOR"),
+  async (req, res, next) => {
+    try {
+      const courseData = {
+        ...req.body,
+        instructor: req.user.userId,
+      };
+
+      const newCourse = await CourseTypeModel.create(courseData);
+
+      res.status(201).json({
+        message: "Course created successfully",
+        payload: newCourse,
+      });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// ================= GET COURSES =================
+InstructorApp.get(
+  "/courses",
+  verifyToken("INSTRUCTOR"),
+  async (req, res, next) => {
+    try {
+      const courses = await CourseTypeModel.find({
+        instructor: req.user.userId,
+      }).sort({ createdAt: -1 });
+
+      res.status(200).json({
+        message: "Instructor courses fetched",
+        payload: courses,
+      });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// ================= UPDATE COURSE =================
+InstructorApp.put(
+  "/courses/:courseId",
+  verifyToken("INSTRUCTOR"),
+  async (req, res, next) => {
+    try {
+      const { courseId } = req.params;
+
+      const course = await CourseTypeModel.findById(courseId);
+
+      if (!course) {
+        return res.status(404).json({ message: "Course not found" });
+      }
+
+      if (course.instructor.toString() !== req.user.userId) {
+        return res.status(403).json({ message: "Not authorized" });
+      }
+
+      if (!course.isCourseActive) {
+        return res.status(400).json({ message: "Course is inactive" });
+      }
+
+      const updatedCourse = await CourseTypeModel.findByIdAndUpdate(
+        courseId,
+        req.body,
+        { new: true },
+      );
+
+      res.status(200).json({
+        message: "Course updated successfully",
+        payload: updatedCourse,
+      });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// ================= ADD LECTURE =================
+InstructorApp.post(
+  "/courses/:courseId/lectures",
+  verifyToken("INSTRUCTOR"),
+  async (req, res, next) => {
+    try {
+      const course = await CourseTypeModel.findById(req.params.courseId);
+
+      if (!course) return res.status(404).json({ message: "Course not found" });
+
+      if (course.instructor.toString() !== req.user.userId) {
+        return res.status(403).json({ message: "Not authorized" });
+      }
+
+      if (!course.isCourseActive) {
+        return res.status(400).json({ message: "Course inactive" });
+      }
+
+      course.lectures.push(req.body);
+      await course.save();
+
+      res.status(200).json({
+        message: "Lecture added successfully",
+        payload: course,
+      });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// ================= UPLOAD VIDEO =================
 InstructorApp.post(
   "/courses/:courseId/lectures/:lectureId/video",
   verifyToken("INSTRUCTOR"),
   upload.single("video"),
-  async (req, res) => {
-    const { courseId, lectureId } = req.params;
-    const rawVideoPath = req.file.path;
-    const outputDir = `uploads/hls/${courseId}/${lectureId}/`;
-    const s3KeyPrefix = `courses/${courseId}/lectures/${lectureId}/hls`;
-
+  async (req, res, next) => {
     try {
-      const hlsUrl = await processVideoToHLS(rawVideoPath, outputDir, s3KeyPrefix);
+      const { courseId, lectureId } = req.params;
+
+      if (!req.file) {
+        return res.status(400).json({ message: "No file uploaded" });
+      }
+
+      const rawPath = req.file.path;
+      const outputDir = `uploads/hls/${courseId}/${lectureId}/`;
+      const s3KeyPrefix = `courses/${courseId}/lectures/${lectureId}/hls`;
+
+      const hlsUrl = await processVideoToHLS(rawPath, outputDir, s3KeyPrefix);
 
       const updatedCourse = await CourseTypeModel.findOneAndUpdate(
-        { _id: courseId, "lectures._id": lectureId, instructor: req.user.userId },
+        {
+          _id: courseId,
+          instructor: req.user.userId,
+          "lectures._id": new mongoose.Types.ObjectId(lectureId),
+        },
         { $set: { "lectures.$.videoUrl": hlsUrl } },
         { new: true },
       );
 
       if (!updatedCourse) {
-        return res.status(404).json({ message: "Course or lecture not found" });
+        return res.status(404).json({ message: "Lecture not found" });
       }
 
-      fs.unlinkSync(rawVideoPath);
-      fs.rmSync(outputDir, { recursive: true, force: true });
+      // cleanup
+      if (fs.existsSync(rawPath)) fs.unlinkSync(rawPath);
+      if (fs.existsSync(outputDir))
+        fs.rmSync(outputDir, { recursive: true, force: true });
 
       res.status(200).json({
         message: "Video uploaded successfully",
         payload: { hlsUrl },
       });
     } catch (err) {
-      console.error("Video processing error: ", err);
-      res.status(500).json({ message: "Video processing failed", error: err.message });
+      next(err);
+    }
+  },
+);
+
+// ================= COURSE STATUS =================
+InstructorApp.patch(
+  "/courses/:courseId/status",
+  verifyToken("INSTRUCTOR"),
+  async (req, res, next) => {
+    try {
+      const course = await CourseTypeModel.findById(req.params.courseId);
+
+      if (!course) return res.status(404).json({ message: "Course not found" });
+
+      if (course.instructor.toString() !== req.user.userId) {
+        return res.status(403).json({ message: "Not authorized" });
+      }
+
+      course.isCourseActive = req.body.isCourseActive;
+      await course.save();
+
+      res.status(200).json({
+        message: "Course status updated",
+        payload: course,
+      });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// ================= DELETE COURSE =================
+InstructorApp.delete(
+  "/courses/:courseId",
+  verifyToken("INSTRUCTOR"),
+  async (req, res, next) => {
+    try {
+      const course = await CourseTypeModel.findById(req.params.courseId);
+
+      if (!course) return res.status(404).json({ message: "Course not found" });
+
+      if (course.instructor.toString() !== req.user.userId) {
+        return res.status(403).json({ message: "Not authorized" });
+      }
+
+      await CourseTypeModel.findByIdAndDelete(req.params.courseId);
+
+      res.status(200).json({
+        message: "Course deleted permanently",
+      });
+    } catch (err) {
+      next(err);
     }
   },
 );
