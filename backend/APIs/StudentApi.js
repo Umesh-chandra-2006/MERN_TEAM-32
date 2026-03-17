@@ -8,7 +8,7 @@ import { CourseTypeModel } from "../models/CourseModel.js";
 export const studentRoute = exp.Router();
 
 //Register user
-studentRoute.post("/users", async (req, res) => {
+studentRoute.post("/register", async (req, res) => {
   //get user obj from req
   let userObj = req.body;
   const newUserObj = await register({ ...userObj, role: "STUDENT" });

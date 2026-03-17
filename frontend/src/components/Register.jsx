@@ -9,13 +9,14 @@ import {
   inputClass,
   submitBtn,
   formTitle,
+  errorClass,
+  divider
 } from "../styles/common";
 
 function Register() {
   const {
     register,
     handleSubmit,
-    //setError,
     formState: { errors },
   } = useForm();
 
@@ -25,160 +26,139 @@ function Register() {
   const navigate = useNavigate();
 
   const onRegister = async (newUser) => {
+    let url = "";
+    const { role, ...user } = newUser;
+
+    if (role === "Student") {
+      url = "http://localhost:3000/student-api/register";
+    } else if (role === "Instructor") {
+      url = "http://localhost:3000/instructor-api/register";
+    }
+
     setLoading(true);
     try {
-      console.log("New user data: ", newUser);
-      let response = await axios.post(
-        "http://localhost:3000/instructor-api/users",
-        newUser,
-        { withCredentials: true },
-      );
-      console.log("Response object is: ", response);
+      let response = await axios.post(url, user, {
+        withCredentials: true,
+      });
 
-      let res = await response.data;
+      let res = response.data;
 
-      if (response.status === 201) {
-        //User created successfully, navigate to users page
+      if (res.status === 201) {
         navigate("/login");
       } else {
-        setError("Failed to add user. Please check the input and try again.");
-        console.log(response);
+        setError("Failed to add user. Please try again.");
       }
-    } catch (error) {
+    } catch (err) {
       setError("Failed to add user. Please try again.");
-      console.error("Error during registration: ", error);
     } finally {
       setLoading(false);
     }
   };
 
   if (loading) {
-    return <div className="text-center p-4">Adding user...</div>;
-  }
-  if (error !== null) {
-    return <div className="text-center p-4 text-red-500">{error}</div>;
+    return <div className="text-center py-10 text-gray-500">Adding user...</div>;
   }
 
   return (
-    <div className="mt-15 p-4  w-96 mx-auto text-center">
-      <h1 className="text-2xl mb-2">User Registration Form </h1>
-      <div className=" p-4">
-        <form onSubmit={handleSubmit(onRegister)}>
-          <div className="mb-3 ">
-            <input
-              type="text"
-              {...register("firstName", {
-                required: true,
-                minLength: 4,
-                maxLength: 6,
-              })}
-              placeholder="firstName"
-              className="bg-gray-300 p-2"
-            />
-            {errors.firstName?.type === "required" && (
-              <p className="text-red-500">First Name required</p>
-            )}
-            {errors.firstName?.type === "minLength" && (
-              <p className="text-red-500">Min Length is 4</p>
-            )}
-            {errors.firstName?.type === "maxLength" && (
-              <p className="text-red-500">Max Length is 6</p>
-            )}
+    <div className="mt-16 px-4">
+
+      <form onSubmit={handleSubmit(onRegister)} className={formCard}>
+
+        <h1 className={formTitle}>Create Account</h1>
+        <div className={divider}></div>
+
+        {/* Error */}
+        {error && <div className={`${errorClass} mb-4`}>{error}</div>}
+
+        {/* Role */}
+        <div className={formGroup}>
+          <label className={labelClass}>Role</label>
+          <div className="flex gap-6 mt-1">
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input
+                type="radio"
+                value="Instructor"
+                {...register("role", { required: true })}
+              />
+              Instructor
+            </label>
+
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input
+                type="radio"
+                value="Student"
+                {...register("role", { required: true })}
+              />
+              Student
+            </label>
           </div>
-          <div className="mb-3">
-            <input
-              type="text"
-              {...register("lastName", {
-                required: true,
-                minLength: 4,
-                maxLength: 6,
-              })}
-              placeholder="lastName"
-              className="bg-gray-300 p-2"
-            />
-            {errors.lastName?.type === "required" && (
-              <p className="text-red-500">Last Name required</p>
-            )}
-            {errors.lastName?.type === "minLength" && (
-              <p className="text-red-500">Min Length is 4</p>
-            )}
-            {errors.lastName?.type === "maxLength" && (
-              <p className="text-red-500">Max Length is 6</p>
-            )}
-          </div>
-          <div className="mb-3">
-            <input
-              type="email"
-              {...register("email", { required: true })}
-              placeholder="Email"
-              className="bg-gray-300 p-2"
-            />
-            {errors.email?.type === "required" && (
-              <p className="text-red-500">Email required</p>
-            )}
-          </div>
-          <div className="mb-3">
-            <input
-              type="password"
-              {...register("password", { required: true })}
-              placeholder="password"
-              className="bg-gray-300 p-2"
-            />
-            {errors.password?.type === "required" && (
-              <p className="text-red-500">password required</p>
-            )}
-          </div>
-          <div className="mb-3">
-            <input
-              type="text"
-              {...register("profileImageUrl")}
-              placeholder="Profile Image URL"
-              className="bg-gray-300 p-2 "
-            />
-          </div>
-          <button
-            type="submit"
-            className="border-2 p-2 rounded-md bg-blue-500 text-white"
-          >
-            Register
-          </button>
-        </form>
-      </div>
+          {errors.role && <p className="text-red-500 text-xs mt-1">Role is required</p>}
+        </div>
+
+        {/* First Name */}
+        <div className={formGroup}>
+          <label className={labelClass}>First Name</label>
+          <input
+            {...register("firstName", { required: true, minLength: 4, maxLength: 10 })}
+            className={inputClass}
+            placeholder="Enter first name"
+          />
+          {errors.firstName && <p className="text-red-500 text-xs mt-1">Invalid first name</p>}
+        </div>
+
+        {/* Last Name */}
+        <div className={formGroup}>
+          <label className={labelClass}>Last Name</label>
+          <input
+            {...register("lastName", { required: true, minLength: 4, maxLength: 10 })}
+            className={inputClass}
+            placeholder="Enter last name"
+          />
+          {errors.lastName && <p className="text-red-500 text-xs mt-1">Invalid last name</p>}
+        </div>
+
+        {/* Email */}
+        <div className={formGroup}>
+          <label className={labelClass}>Email</label>
+          <input
+            type="email"
+            {...register("email", { required: true })}
+            className={inputClass}
+            placeholder="Enter email"
+          />
+          {errors.email && <p className="text-red-500 text-xs mt-1">Email required</p>}
+        </div>
+
+        {/* Password */}
+        <div className={formGroup}>
+          <label className={labelClass}>Password</label>
+          <input
+            type="password"
+            {...register("password", { required: true })}
+            className={inputClass}
+            placeholder="Enter password"
+          />
+          {errors.password && <p className="text-red-500 text-xs mt-1">Password required</p>}
+        </div>
+
+        {/* Profile Image */}
+        <div className={formGroup}>
+          <label className={labelClass}>Profile Image URL</label>
+          <input
+            {...register("profileImageUrl")}
+            className={inputClass}
+            placeholder="Optional"
+          />
+        </div>
+
+        {/* Submit */}
+        <button type="submit" className={submitBtn}>
+          Register
+        </button>
+
+      </form>
     </div>
   );
 }
 
 export default Register;
-
-/*
-const createUser = async (newUser) => {
-    setLoading(true);
-    try {
-      const response = await fetch("http://localhost:5000/api/users", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(newUser),
-      });
-      if (response.status === 201)
-        //User created successfully, navigate to users page
-        navigate("/users");
-      else
-        setError("Failed to add user. Please check the input and try again.");
-    } catch (error) {
-      console.log(response);
-      setError("Failed to add user. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (loading) {
-    return <div className="text-center p-4">Adding user...</div>;
-  }
-  if (error !== null) {
-    return <div className="text-center p-4 text-red-500">{error}</div>;
-  }
-
-*/

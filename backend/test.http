@@ -1,16 +1,16 @@
-POST http://localhost:6000/instructor-api/users
+POST http://localhost:3000/instructor-api/register
 Content-Type: application/json
 
 {
-  "firstName": "Anurag",
-  "lastName": "Sharma",
-  "email": "anurag.user1@example.com",
-  "password": "User@12345",
+  "firstName": "Karthik",
+  "lastName": "Varma",
+  "email": "karthik@mail.com",
+  "password": "karthik@123",
   "profileImageUrl": "https://example.com/avatars/user.png"
 }
 
 ### User Register
-POST http://localhost:6000/instructor-api/courses
+POST http://localhost:3000/instructor-api/courses
 Content-Type: application/json
 
 {

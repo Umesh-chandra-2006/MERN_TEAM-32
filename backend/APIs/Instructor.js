@@ -6,13 +6,13 @@ import { CourseTypeModel } from "../models/CourseModel.js";
 export const InstructorApp = exp.Router();
 
 //Register author(public)
-InstructorApp.post("/users", async (req, res) => {
+InstructorApp.post("/register", async (req, res) => {
   //get user obj from req
   let userObj = req.body;
   //call register
   const newUserObj = await register({ ...userObj, role: "INSTRUCTOR" });
   //send res
-  res.status(201).json({ message: "authroe created", payload: newUserObj });
+  res.status(201).json({ message: "Successfully registered as instructor", payload: newUserObj });
 });
 
 //Create course(protected route)

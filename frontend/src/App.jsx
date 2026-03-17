@@ -7,6 +7,7 @@ import { Toaster } from "react-hot-toast";
 import UserDashboard from "./components/UserDashboard";
 import InstructorDashboard from "./components/InstructorDashboard";
 import AdminDashboard from "./components/AdminDashboard";
+import Logout from "./components/Logout";
 
 function App() {
   const routerObj = createBrowserRouter([
@@ -38,6 +39,10 @@ function App() {
           path: "admin-dashboard",
           element: <AdminDashboard />,
         },
+        {
+          path:"logout",
+          element:<Logout/>
+        }
       ],
     },
   ]);
