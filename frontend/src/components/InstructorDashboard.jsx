@@ -38,6 +38,14 @@ function InstructorDashboard() {
     }
   }, [currentUser]);
 
+  const handleCreateCourse = () => {
+    navigate("/create-course");
+  };
+
+  const handleEditCourse = (courseId) => {
+    navigate(`/edit-course/${courseId}`);
+  };
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh]">
@@ -55,6 +63,7 @@ function InstructorDashboard() {
           <p className="text-gray-500 mt-1">Manage your courses and track student progress.</p>
         </div>
         <button 
+          onClick={handleCreateCourse}
           className="bg-blue-600 text-white px-6 py-2.5 rounded-xl font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-200 active:scale-95 flex items-center justify-center gap-2"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -73,14 +82,6 @@ function InstructorDashboard() {
 
       <div className="flex items-center justify-between mb-6">
         <h3 className="text-xl font-bold text-gray-900">Your Published Courses</h3>
-        <div className="flex items-center gap-2 text-sm font-medium text-gray-500">
-          <span>Sort by:</span>
-          <select className="bg-transparent border-none focus:ring-0 cursor-pointer font-bold text-gray-900">
-            <option>Recent</option>
-            <option>Popular</option>
-            <option>Rating</option>
-          </select>
-        </div>
       </div>
       
       {courses.length > 0 ? (
@@ -114,15 +115,13 @@ function InstructorDashboard() {
                 </p>
               </div>
               <div className="px-5 py-4 bg-gray-50 border-t border-gray-100 flex justify-between items-center">
-                 <div className="flex -space-x-2">
-                    {[1,2,3].map(i => (
-                      <div key={i} className="w-6 h-6 rounded-full bg-gray-200 border-2 border-white flex items-center justify-center text-[8px] font-bold text-gray-400">
-                        S{i}
-                      </div>
-                    ))}
-                    <div className="text-[10px] ml-4 text-gray-400 font-medium self-center">+{course.enrolledStudents?.length || 0} enrolled</div>
+                 <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">
+                    {course.totalStudents || 0} Students
                  </div>
-                 <button className="text-gray-900 hover:text-blue-600 p-1 transition-colors">
+                 <button 
+                   onClick={() => handleEditCourse(course._id)}
+                   className="text-gray-900 hover:text-blue-600 p-2 hover:bg-white rounded-lg transition-all active:scale-95"
+                 >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                     </svg>
@@ -140,7 +139,10 @@ function InstructorDashboard() {
             </div>
             <h3 className="text-xl font-bold text-gray-900 mb-2">No courses created yet</h3>
             <p className="text-gray-500 mb-8 max-w-sm mx-auto">Start sharing your knowledge with the world by creating your first course today.</p>
-            <button className="bg-blue-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 active:scale-95">
+            <button 
+              onClick={handleCreateCourse}
+              className="bg-blue-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 active:scale-95"
+            >
                 Create Your First Course
             </button>
         </div>
@@ -150,4 +152,3 @@ function InstructorDashboard() {
 }
 
 export default InstructorDashboard;
-

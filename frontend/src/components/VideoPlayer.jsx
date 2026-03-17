@@ -16,7 +16,7 @@ export const VideoPlayer = ({ src, options }) => {
 
       const player = (playerRef.current = videojs(videoElement, {
         ...options,
-        autoplay: false,
+        autoplay: options?.autoplay || false,
         controls: true,
         responsive: true,
         fluid: true,
@@ -27,30 +27,39 @@ export const VideoPlayer = ({ src, options }) => {
           },
         ],
       }, () => {
-        videojs.log("player is ready");
+        // videojs.log("player is ready");
       }));
+
+      // Set up onEnded if provided
+      if (options?.onEnded) {
+        player.on("ended", options.onEnded);
+      }
 
     } else {
       // Update the player source if the src prop changes
       const player = playerRef.current;
       player.src({ src: src, type: "application/x-mpegURL" });
+      
+      // Update onEnded handler
+      if (options?.onEnded) {
+        player.off("ended"); // Remove old listeners
+        player.on("ended", options.onEnded);
+      }
     }
-  }, [src, options, videoRef]);
+  }, [src, options]);
 
   // Dispose the player on unmount
   useEffect(() => {
-    const player = playerRef.current;
-
     return () => {
-      if (player && !player.isDisposed()) {
-        player.dispose();
+      if (playerRef.current && !playerRef.current.isDisposed()) {
+        playerRef.current.dispose();
         playerRef.current = null;
       }
     };
-  }, [playerRef]);
+  }, []);
 
   return (
-    <div data-vjs-player>
+    <div data-vjs-player className="w-full h-full">
       <div ref={videoRef} />
     </div>
   );
