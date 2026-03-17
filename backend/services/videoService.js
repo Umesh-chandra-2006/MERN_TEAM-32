@@ -1,7 +1,10 @@
 import ffmpeg from "fluent-ffmpeg";
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import fs from "fs";
 import path from "path";
+import os from "os";
+import { Readable } from "stream";
 
 // S3 Configuration
 const s3Config = {
@@ -14,113 +17,108 @@ const s3Config = {
 
 const s3Client = new S3Client(s3Config);
 const BUCKET_NAME = process.env.AWS_S3_BUCKET_NAME || "";
+const CLOUDFRONT_DOMAIN = process.env.AWS_CLOUDFRONT_DOMAIN || "";
 
 /**
- * Checks if AWS credentials and bucket are configured.
+ * Generates a presigned URL for direct S3 upload from the browser.
  */
-const isAWSConfigured = () => {
-  return (
-    s3Config.credentials.accessKeyId &&
-    s3Config.credentials.secretAccessKey &&
-    BUCKET_NAME
-  );
-};
-
-/**
- * Checks if ffmpeg is available on the system.
- */
-const checkFFmpeg = () => {
-  return new Promise((resolve) => {
-    ffmpeg.getAvailableCodecs((err) => {
-      if (err) {
-        console.warn("FFmpeg not found. Video transcoding will be skipped (Mock Mode).");
-        resolve(false);
-      } else {
-        resolve(true);
-      }
-    });
+export const generatePresignedUploadUrl = async (s3Key) => {
+  const command = new PutObjectCommand({
+    Bucket: BUCKET_NAME,
+    Key: s3Key,
+    // ContentType: "video/*" // Optional: restrict to videos
   });
+  
+  // URL expires in 15 minutes
+  return await getSignedUrl(s3Client, command, { expiresIn: 900 });
 };
 
 /**
- * Transcodes a raw video to HLS (.m3u8 + .ts segments)
- * and uploads them to S3.
+ * Transcodes a raw video (from S3) to HLS and uploads segments back to S3.
+ * inputS3Key: The location of the raw video in S3.
  */
-export const processVideoToHLS = async (inputPath, outputDir, s3KeyPrefix) => {
-  const hasFFmpeg = await checkFFmpeg();
-  const hasAWS = isAWSConfigured();
+export const processS3VideoToHLS = async (inputS3Key, s3KeyPrefix) => {
+  const tempId = Date.now() + "-" + Math.round(Math.random() * 1e9);
+  const outputDir = path.join(os.tmpdir(), "gemini-video-transcode", tempId);
+  const rawLocalPath = path.join(outputDir, "raw_video.tmp");
 
-  // Ensure the local output directory exists
   if (!fs.existsSync(outputDir)) {
     fs.mkdirSync(outputDir, { recursive: true });
   }
 
-  const hlsPlaylistFile = "playlist.m3u8";
-  const hlsPlaylistPath = path.join(outputDir, hlsPlaylistFile);
-
-  // MOCK MODE: If FFmpeg or AWS is missing, simulate the process for testing
-  if (!hasFFmpeg || !hasAWS) {
-    console.log("Running in MOCK MODE for video processing.");
+  try {
+    // 1. Download raw file from S3 to local temp
+    console.log(`Downloading raw video from S3: ${inputS3Key}`);
+    const getObjectParams = { Bucket: BUCKET_NAME, Key: inputS3Key };
+    const { Body } = await s3Client.send(new GetObjectCommand(getObjectParams));
     
-    // Simulate some work
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    // Convert stream to file
+    const fileStream = fs.createWriteStream(rawLocalPath);
+    await new Promise((resolve, reject) => {
+      Body.pipe(fileStream)
+        .on("error", reject)
+        .on("finish", resolve);
+    });
 
-    if (!hasAWS) {
-      // If no AWS, we'll just return a local path (simulated as a URL)
-      // Note: In a real app, you'd serve these files via express.static
-      return `/uploads/hls/${s3KeyPrefix}/${hlsPlaylistFile}`;
-    }
-    
-    // If we have AWS but no FFmpeg, we can't really upload HLS segments
-    // but we could upload the raw file as a fallback if desired.
-    // For now, let's just throw an error if FFmpeg is missing but we're expected to upload to S3.
-    if (!hasFFmpeg && hasAWS) {
-      throw new Error("FFmpeg is required for HLS transcoding but was not found.");
+    // 2. Transcode
+    const hlsPlaylistFile = "playlist.m3u8";
+    const hlsPlaylistPath = path.join(outputDir, hlsPlaylistFile);
+
+    await new Promise((resolve, reject) => {
+      ffmpeg(rawLocalPath)
+        .outputOptions([
+          "-profile:v baseline",
+          "-level 3.0",
+          "-start_number 0",
+          "-hls_time 10",
+          "-hls_list_size 0",
+          "-f hls",
+        ])
+        .output(hlsPlaylistPath)
+        .on("end", async () => {
+          console.log("Transcoding finished. Uploading to S3...");
+          try {
+            const files = fs.readdirSync(outputDir).filter(f => f !== "raw_video.tmp");
+            const uploadPromises = files.map(async (file) => {
+              const filePath = path.join(outputDir, file);
+              const fileBuffer = fs.readFileSync(filePath);
+              const uploadParams = {
+                Bucket: BUCKET_NAME,
+                Key: `${s3KeyPrefix}/${file}`,
+                Body: fileBuffer,
+                ContentType: file.endsWith(".m3u8") ? "application/x-mpegURL" : "video/MP2T",
+              };
+              return s3Client.send(new PutObjectCommand(uploadParams));
+            });
+
+            await Promise.all(uploadPromises);
+
+            const hlsUrl = CLOUDFRONT_DOMAIN 
+              ? `https://${CLOUDFRONT_DOMAIN}/${s3KeyPrefix}/${hlsPlaylistFile}`
+              : `https://${BUCKET_NAME}.s3.${s3Config.region}.amazonaws.com/${s3KeyPrefix}/${hlsPlaylistFile}`;
+            
+            resolve(hlsUrl);
+          } catch (err) {
+            reject(err);
+          }
+        })
+        .on("error", reject)
+        .run();
+    });
+
+    // 3. Optional: Delete the raw file from S3 after processing
+    // await s3Client.send(new DeleteObjectCommand({ Bucket: BUCKET_NAME, Key: inputS3Key }));
+
+    return { 
+      hlsUrl: CLOUDFRONT_DOMAIN 
+        ? `https://${CLOUDFRONT_DOMAIN}/${s3KeyPrefix}/${hlsPlaylistFile}`
+        : `https://${BUCKET_NAME}.s3.${s3Config.region}.amazonaws.com/${s3KeyPrefix}/${hlsPlaylistFile}`
+    };
+
+  } finally {
+    // 4. Final Cleanup
+    if (fs.existsSync(outputDir)) {
+      fs.rmSync(outputDir, { recursive: true, force: true });
     }
   }
-
-  return new Promise((resolve, reject) => {
-    ffmpeg(inputPath)
-      .outputOptions([
-        "-profile:v baseline",
-        "-level 3.0",
-        "-start_number 0",
-        "-hls_time 10",
-        "-hls_list_size 0",
-        "-f hls",
-      ])
-      .output(hlsPlaylistPath)
-      .on("end", async () => {
-        console.log("Transcoding finished. Uploading to S3...");
-        try {
-          const files = fs.readdirSync(outputDir);
-          const uploadPromises = files.map(async (file) => {
-            const filePath = path.join(outputDir, file);
-            const fileBuffer = fs.readFileSync(filePath); // Use buffer instead of stream
-            const uploadParams = {
-              Bucket: BUCKET_NAME,
-              Key: `${s3KeyPrefix}/${file}`,
-              Body: fileBuffer,
-              ContentLength: fileBuffer.length, // Explicitly provide length
-              ContentType: file.endsWith(".m3u8") ? "application/x-mpegURL" : "video/MP2T",
-            };
-            return s3Client.send(new PutObjectCommand(uploadParams));
-          });
-
-          await Promise.all(uploadPromises);
-
-          // Return the URL of the .m3u8 file
-          const hlsUrl = `https://${BUCKET_NAME}.s3.${s3Config.region}.amazonaws.com/${s3KeyPrefix}/${hlsPlaylistFile}`;
-          resolve(hlsUrl);
-        } catch (err) {
-          console.error("S3 Upload Error:", err);
-          reject(new Error(`Failed to upload to S3: ${err.message}`));
-        }
-      })
-      .on("error", (err) => {
-        console.error("Transcoding error: ", err);
-        reject(new Error(`Transcoding failed: ${err.message}`));
-      })
-      .run();
-  });
 };

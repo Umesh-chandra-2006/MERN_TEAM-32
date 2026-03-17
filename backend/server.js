@@ -5,7 +5,8 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import { commonRouter } from "./APIs/CommonApi.js";
 import { studentRoute } from "./APIs/StudentApi.js";
-import { InstructorApp } from "./APIs/Instructor.js";
+import { instructorRouter } from "./APIs/Instructor.js";
+import { adminRoute } from "./APIs/AdminApi.js";
 
 config(); //process.env
 
@@ -20,8 +21,9 @@ app.use(cookieParser());
 
 //connect APIs
 app.use("/student-api", studentRoute);
-app.use("/instructor-api", InstructorApp);
+app.use("/instructor-api", instructorRouter);
 app.use("/common-api", commonRouter);
+app.use("/admin-api", adminRoute);
 
 //connect to db
 const connectDB = async () => {
@@ -46,6 +48,7 @@ app.use((req, res, next) => {
 
 //error handling middleware
 app.use((err, req, res, next) => {
+  console.error("GLOBAL ERROR HANDLER:", err);
   const status = err.status || err.statusCode || 500;
   const isProduction = process.env.NODE_ENV === "production";
 

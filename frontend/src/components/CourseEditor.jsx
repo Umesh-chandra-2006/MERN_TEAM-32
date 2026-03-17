@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router";
 import { useForm, useFieldArray } from "react-hook-form";
+import { api } from "../store/useAuth";
 import axios from "axios";
 import { toast } from "react-hot-toast";
 
@@ -11,20 +12,24 @@ function CourseEditor() {
 
   const [loading, setLoading] = useState(isEditMode);
   const [saving, setSaving] = useState(false);
-  const [uploadingVideo, setUploadingVideo] = useState(null); // stores lecture index being uploaded
+  const [uploadingStatus, setUploadingStatus] = useState({ index: null, progress: 0, status: "" });
 
   const {
     register,
     handleSubmit,
     control,
     reset,
+    setValue,
+    watch,
     formState: { errors },
   } = useForm({
     defaultValues: {
       title: "",
       category: "",
       description: "",
+      thumbnailUrl: "",
       price: 0,
+      status: "DRAFT",
       lectures: [{ title: "", duration: 0 }],
     },
   });
@@ -34,17 +39,15 @@ function CourseEditor() {
     name: "lectures",
   });
 
+  const courseStatus = watch("status");
+
   useEffect(() => {
     if (isEditMode) {
       async function fetchCourse() {
         try {
-          // Note: Using student-api for details is fine if it returns full details
-          // but usually instructors need a specific endpoint to get their own course with video URLs
-          const res = await axios.get(`http://localhost:3000/student-api/courses/${courseId}`, {
-            withCredentials: true,
-          });
-          reset(res.data.payload.course);
-        } catch (err) {
+          const res = await api.get(`/instructor-api/courses/${courseId}`);
+          reset(res.data.payload);
+        } catch (_err) {
           toast.error("Failed to load course");
           navigate("/instructor-dashboard");
         } finally {
@@ -58,15 +61,19 @@ function CourseEditor() {
   const onSubmit = async (data) => {
     setSaving(true);
     try {
-      if (isEditMode) {
-        // Implement PUT /instructor-api/courses/:courseId if needed
-        toast.success("Course update logic coming soon!");
+      const res = await api.post("/instructor-api/courses", data);
+      toast.success(isEditMode ? "Course updated!" : "Course created!");
+      
+      // If it's a new course, stay in edit mode to upload videos
+      if (!isEditMode) {
+        navigate(`/edit-course/${res.data.payload._id}`);
       } else {
-        const res = await axios.post("http://localhost:3000/instructor-api/courses", data, {
-          withCredentials: true,
-        });
-        toast.success("Course created successfully!");
-        navigate("/instructor-dashboard");
+        // If published, go back to dashboard
+        if (data.status === "PUBLISHED") {
+          navigate("/instructor-dashboard");
+        } else {
+          reset(res.data.payload);
+        }
       }
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed to save course");
@@ -82,22 +89,46 @@ function CourseEditor() {
     }
     if (!file) return;
 
-    setUploadingVideo(index);
-    const formData = new FormData();
-    formData.append("video", file);
+    setUploadingStatus({ index, progress: 0, status: "Getting upload URL..." });
 
     try {
-      await axios.post(
-        `http://localhost:3000/instructor-api/courses/${courseId}/lectures/${lectureId}/video`,
-        formData,
-        { withCredentials: true }
+      // 1. Get Presigned URL
+      const urlRes = await api.get(
+        `/instructor-api/courses/${courseId}/lectures/${lectureId}/upload-url`
       );
-      toast.success("Video uploaded and transcoded!");
-      // Optionally refresh data
+      const { uploadUrl, s3Key } = urlRes.data.payload;
+
+      // 2. Upload directly to S3
+      setUploadingStatus({ index, progress: 0, status: "Uploading to S3..." });
+      await axios.put(uploadUrl, file, {
+        headers: { "Content-Type": file.type },
+        onUploadProgress: (progressEvent) => {
+          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          setUploadingStatus(prev => ({ 
+            ...prev, 
+            progress: percentCompleted,
+            status: percentCompleted === 100 ? "Finalizing upload..." : "Uploading to S3..."
+          }));
+        }
+      });
+
+      // 3. Trigger Backend Processing
+      setUploadingStatus({ index, progress: 100, status: "Processing video..." });
+      await api.post(
+        `/instructor-api/courses/${courseId}/lectures/${lectureId}/process-video`,
+        { s3Key }
+      );
+
+      toast.success("Video uploaded and processing started!");
+      
+      // Refresh course data
+      const res = await api.get(`/instructor-api/courses/${courseId}`);
+      reset(res.data.payload);
     } catch (err) {
-      toast.error("Video upload failed");
+      console.error(err);
+      toast.error(err.response?.data?.message || "Video upload failed");
     } finally {
-      setUploadingVideo(null);
+      setUploadingStatus({ index: null, progress: 0, status: "" });
     }
   };
 
@@ -112,13 +143,21 @@ function CourseEditor() {
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      <div className="mb-12">
-        <h1 className="text-4xl font-black text-gray-900 tracking-tight">
-          {isEditMode ? "Edit Course" : "Create New Course"}
-        </h1>
-        <p className="text-gray-500 mt-2 text-lg">
-          Fill in the details below to {isEditMode ? "update your" : "publish a new"} course.
-        </p>
+      <div className="mb-12 flex justify-between items-end">
+        <div>
+          <h1 className="text-4xl font-black text-gray-900 tracking-tight">
+            {isEditMode ? "Edit Course" : "Create New Course"}
+          </h1>
+          <p className="text-gray-500 mt-2 text-lg">
+            Fill in the details below to {isEditMode ? "update your" : "publish a new"} course.
+          </p>
+        </div>
+        {isEditMode && (
+          <div className="flex items-center gap-2 px-4 py-2 bg-gray-100 rounded-2xl border border-gray-200">
+            <span className={`w-2 h-2 rounded-full ${courseStatus === "PUBLISHED" ? "bg-green-500" : "bg-yellow-500"}`}></span>
+            <span className="text-sm font-bold text-gray-700 uppercase tracking-wider">{courseStatus}</span>
+          </div>
+        )}
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-12">
@@ -191,6 +230,23 @@ function CourseEditor() {
             </button>
           </div>
 
+          {!isEditMode && (
+            <div className="bg-blue-50 border border-blue-100 rounded-2xl p-6 mb-8 flex items-start gap-4">
+              <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center text-blue-600 flex-shrink-0">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div>
+                <h4 className="font-bold text-blue-900">Uploading Videos</h4>
+                <p className="text-sm text-blue-700 mt-1 leading-relaxed">
+                  You can upload high-quality videos for each lecture <strong>after</strong> you save this course for the first time. 
+                  Our system will automatically transcode them for smooth streaming once uploaded.
+                </p>
+              </div>
+            </div>
+          )}
+
           <div className="space-y-6">
             {fields.map((field, index) => (
               <div key={field.id} className="p-8 bg-gray-50 rounded-3xl border border-gray-100 relative group">
@@ -223,27 +279,44 @@ function CourseEditor() {
                 </div>
 
                 {isEditMode && field._id && (
-                  <div className="mt-6 pt-6 border-t border-gray-200 flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center text-blue-600">
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 00-2 2z" />
-                        </svg>
+                  <div className="mt-6 pt-6 border-t border-gray-200">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center text-blue-600">
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 00-2 2z" />
+                          </svg>
+                        </div>
+                        <span className="text-sm text-gray-500 font-medium">
+                          {field.videoUrl ? "Video uploaded" : "No video uploaded yet"}
+                        </span>
                       </div>
-                      <span className="text-sm text-gray-500 font-medium">
-                        {field.videoUrl ? "Video uploaded" : "No video uploaded yet"}
-                      </span>
+                      <label className={`cursor-pointer px-4 py-2 rounded-xl text-xs font-bold transition-all ${uploadingStatus.index === index ? "bg-gray-100 text-gray-400 cursor-not-allowed" : "bg-white border border-gray-200 text-gray-700 hover:border-blue-500 hover:text-blue-600 shadow-sm"}`}>
+                        {uploadingStatus.index === index ? "Processing..." : "Upload Video"}
+                        <input
+                          type="file"
+                          accept="video/*"
+                          className="hidden"
+                          onChange={(e) => handleVideoUpload(index, field._id, e.target.files[0])}
+                          disabled={uploadingStatus.index !== null}
+                        />
+                      </label>
                     </div>
-                    <label className={`cursor-pointer px-4 py-2 rounded-xl text-xs font-bold transition-all ${uploadingVideo === index ? "bg-gray-100 text-gray-400" : "bg-white border border-gray-200 text-gray-700 hover:border-blue-500 hover:text-blue-600 shadow-sm"}`}>
-                      {uploadingVideo === index ? "Uploading..." : "Upload Video"}
-                      <input
-                        type="file"
-                        accept="video/*"
-                        className="hidden"
-                        onChange={(e) => handleVideoUpload(index, field._id, e.target.files[0])}
-                        disabled={uploadingVideo !== null}
-                      />
-                    </label>
+                    
+                    {uploadingStatus.index === index && (
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-xs font-bold text-gray-500">
+                          <span>{uploadingStatus.status}</span>
+                          <span>{uploadingStatus.progress}%</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-1.5">
+                          <div 
+                            className="bg-blue-600 h-1.5 rounded-full transition-all duration-300" 
+                            style={{ width: `${uploadingStatus.progress}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -259,12 +332,50 @@ function CourseEditor() {
           >
             Cancel
           </button>
+          
+          {courseStatus === "PUBLISHED" ? (
+            <button
+              type="button"
+              disabled={saving}
+              onClick={() => {
+                setValue("status", "DRAFT");
+                handleSubmit(onSubmit)();
+              }}
+              className="px-8 py-4 border-2 border-red-100 text-red-500 font-bold rounded-2xl hover:bg-red-50 transition-all active:scale-95 disabled:opacity-50"
+            >
+              Unpublish & Set to Draft
+            </button>
+          ) : (
+            <button
+              type="button"
+              disabled={saving}
+              onClick={() => {
+                setValue("status", "DRAFT");
+                handleSubmit(onSubmit)();
+              }}
+              className="px-8 py-4 border-2 border-gray-200 text-gray-700 font-bold rounded-2xl hover:border-gray-900 transition-all active:scale-95 disabled:opacity-50"
+            >
+              Save as Draft
+            </button>
+          )}
+
           <button
-            type="submit"
+            type="button"
             disabled={saving}
+            onClick={() => {
+              setValue("status", "PUBLISHED");
+              handleSubmit(onSubmit)();
+            }}
             className="px-12 py-4 bg-blue-600 text-white font-black rounded-2xl hover:bg-blue-700 transition-all shadow-xl shadow-blue-100 active:scale-95 disabled:opacity-50"
           >
-            {saving ? "Saving..." : isEditMode ? "Update Course" : "Publish Course"}
+            {saving 
+              ? "Saving..." 
+              : courseStatus === "PUBLISHED" 
+                ? "Update Changes" 
+                : isEditMode 
+                  ? "Update & Publish" 
+                  : "Publish Course"
+            }
           </button>
         </div>
       </form>

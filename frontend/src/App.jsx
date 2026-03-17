@@ -10,6 +10,7 @@ import AdminDashboard from "./components/AdminDashboard";
 import CourseDetails from "./components/CourseDetails";
 import LearningView from "./components/LearningView";
 import CourseEditor from "./components/CourseEditor";
+import Profile from "./components/Profile";
 import { useAuth } from "./store/useAuth";
 import { useEffect } from "react";
 
@@ -40,6 +41,10 @@ function App() {
         {
           path: "user-dashboard",
           element: <UserDashboard />,
+        },
+        {
+          path: "profile",
+          element: <Profile />,
         },
         {
           path: "instructor-dashboard",

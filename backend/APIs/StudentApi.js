@@ -15,12 +15,34 @@ studentRoute.post("/users", async (req, res) => {
   res.status(201).json({ message: "user created", payload: newUserObj });
 });
 
-// Read all active courses
-studentRoute.get("/courses", verifyToken("STUDENT"), async (req, res) => {
-  const courses = await CourseTypeModel.find({ isCourseActive: true })
+// Read all active courses (with search and filter)
+studentRoute.get("/courses", verifyToken("STUDENT", "INSTRUCTOR", "ADMIN"), async (req, res) => {
+  const { q, category, limit } = req.query;
+  let filter = { isCourseActive: true };
+
+  if (q) {
+    filter.$or = [
+      { title: { $regex: q, $options: "i" } },
+      { description: { $regex: q, $options: "i" } },
+      { category: { $regex: q, $options: "i" } }
+    ];
+  }
+
+  if (category && category !== "all") {
+    filter.category = category;
+  }
+
+  let query = CourseTypeModel.find(filter)
     .populate("instructor", "firstName lastName profileImageUrl")
-    .select("-lectures.videoUrl"); // Don't send video URLs in the list
-  res.status(200).json({ message: "all courses", payload: courses });
+    .select("-lectures.videoUrl")
+    .sort({ createdAt: -1 });
+
+  if (limit) {
+    query = query.limit(parseInt(limit));
+  }
+
+  const courses = await query;
+  res.status(200).json({ message: "courses fetched", payload: courses });
 });
 
 // Enroll in a course
@@ -92,7 +114,7 @@ studentRoute.patch("/courses/:courseId/lectures/:lectureId/progress", verifyToke
   if (!enrollment) return res.status(404).json({ message: "Enrollment not found" });
 
   // Add to completed if not already there
-  if (!enrollment.completedLectures.includes(lectureId)) {
+  if (!enrollment.completedLectures.some(id => id.toString() === lectureId)) {
     enrollment.completedLectures.push(lectureId);
     
     // Calculate new percentage

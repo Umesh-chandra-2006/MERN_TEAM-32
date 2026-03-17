@@ -97,6 +97,15 @@ function InstructorDashboard() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
                 </div>
+                <div className="absolute top-4 right-4">
+                  <span className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm border ${
+                    course.status === "PUBLISHED" 
+                      ? "bg-green-500 text-white border-green-600" 
+                      : "bg-yellow-400 text-yellow-900 border-yellow-500"
+                  }`}>
+                    {course.status || "DRAFT"}
+                  </span>
+                </div>
               </div>
               <div className="p-5 flex-grow">
                 <div className="flex items-center justify-between mb-2">

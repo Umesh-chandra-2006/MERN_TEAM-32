@@ -52,6 +52,11 @@ const CourseSchema = new Schema(
       type: Number,
       default: 0,
     },
+    status: {
+      type: String,
+      enum: ["DRAFT", "PUBLISHED"],
+      default: "DRAFT",
+    },
     isCourseActive: {
       type: Boolean,
       default: true,

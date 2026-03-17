@@ -1,13 +1,11 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router";
-import { useAuth } from "../store/useAuth";
 import axios from "axios";
 import { toast } from "react-hot-toast";
 
 function CourseDetails() {
   const { courseId } = useParams();
   const navigate = useNavigate();
-  const currentUser = useAuth((state) => state.currentUser);
 
   const [course, setCourse] = useState(null);
   const [enrollment, setEnrollment] = useState(null);
@@ -22,7 +20,7 @@ function CourseDetails() {
         });
         setCourse(res.data.payload.course);
         setEnrollment(res.data.payload.enrollment);
-      } catch (err) {
+      } catch (_err) {
         toast.error("Failed to fetch course details");
         navigate("/user-dashboard");
       } finally {

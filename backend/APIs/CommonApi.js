@@ -5,31 +5,29 @@ import { verifyToken } from "../middlewares/verifyToken.js";
 import bcrypt from "bcryptjs";
 export const commonRouter = express.Router();
 
-//login
-commonRouter.post("/login", async (req, res) => {
-  //get user cred object
-  let userCred = req.body;
-  //call authenticate service
-  let { token, user } = await authenticate(userCred);
-  //save tokan as httpOnly cookie
-  res.cookie("token", token, {
+// Helper to set cookies
+const setAuthCookies = (res, accessToken) => {
+  res.cookie("token", accessToken, {
     httpOnly: true,
     sameSite: "lax",
-    secure: false,
+    secure: false, // Set to true in production
+    maxAge: 24 * 60 * 60 * 1000 // 1 day
   });
-  //send res
+};
+
+//login
+commonRouter.post("/login", async (req, res) => {
+  let userCred = req.body;
+  let { accessToken, user } = await authenticate(userCred);
+  
+  setAuthCookies(res, accessToken);
+  
   res.status(200).json({ message: "login success", payload: user });
 });
 
 //logout for User, Author and Admin
 commonRouter.get("/logout", (req, res) => {
-  // Clear the cookie named 'token'
-  res.clearCookie("token", {
-    httpOnly: true, // Must match original  settings
-    secure: false, // Must match original  settings
-    sameSite: "lax", // Must match original  settings
-  });
-
+  res.clearCookie("token");
   res.status(200).json({ message: "Logged out successfully" });
 });
 
@@ -44,6 +42,24 @@ commonRouter.get("/get-user", verifyToken("STUDENT", "INSTRUCTOR", "ADMIN"), asy
   } catch (err) {
     res.status(500).json({ message: "Internal server error" });
   }
+});
+
+// Get profile
+commonRouter.get("/profile", verifyToken("STUDENT", "INSTRUCTOR", "ADMIN"), async (req, res) => {
+  const user = await UserTypeModel.findById(req.user.userId).select("-password");
+  res.status(200).json({ payload: user });
+});
+
+// Update profile
+commonRouter.patch("/profile", verifyToken("STUDENT", "INSTRUCTOR", "ADMIN"), async (req, res) => {
+  const { firstName, lastName, profileImageUrl } = req.body;
+  const updatedUser = await UserTypeModel.findByIdAndUpdate(
+    req.user.userId,
+    { $set: { firstName, lastName, profileImageUrl } },
+    { new: true, runValidators: true }
+  ).select("-password");
+  
+  res.status(200).json({ message: "Profile updated", payload: updatedUser });
 });
 
 //Change password(Protected route)

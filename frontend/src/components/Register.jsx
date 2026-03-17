@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import { useForm } from "react-hook-form";
-import axios from "axios";
 import { useNavigate, Link } from "react-router";
 import { toast } from "react-hot-toast";
+import { api } from "../store/useAuth";
 
 function Register() {
   const {
@@ -24,8 +24,8 @@ function Register() {
     setLoading(true);
     try {
       const apiPath = newUser.role === "STUDENT" ? "student-api" : "instructor-api";
-      let response = await axios.post(
-        `http://localhost:3000/${apiPath}/users`,
+      let response = await api.post(
+        `/${apiPath}/users`,
         newUser
       );
 

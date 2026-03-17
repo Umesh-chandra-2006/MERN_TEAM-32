@@ -3,12 +3,10 @@ import { useParams, useNavigate } from "react-router";
 import axios from "axios";
 import { toast } from "react-hot-toast";
 import VideoPlayer from "./VideoPlayer";
-import { useAuth } from "../store/useAuth";
 
 function LearningView() {
   const { courseId } = useParams();
   const navigate = useNavigate();
-  const currentUser = useAuth((state) => state.currentUser);
 
   const [course, setCourse] = useState(null);
   const [enrollment, setEnrollment] = useState(null);
@@ -38,7 +36,7 @@ function LearningView() {
         if (courseData.lectures && courseData.lectures.length > 0) {
           setCurrentLecture(courseData.lectures[0]);
         }
-      } catch (err) {
+      } catch (_err) {
         toast.error("Failed to load learning data");
         navigate("/user-dashboard");
       } finally {

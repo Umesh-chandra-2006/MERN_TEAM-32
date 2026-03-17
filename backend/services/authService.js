@@ -49,14 +49,14 @@ export const authenticate = async ({ email, password }) => {
   }
 
   //generate token
-  const token = jwt.sign({ userId: user._id, 
-    role: user.role, email: user.email }, 
-    process.env.JWT_SECRET, {
-    expiresIn: "1h",
-  });
+  const accessToken = jwt.sign(
+    { userId: user._id, role: user.role, email: user.email },
+    process.env.JWT_SECRET,
+    { expiresIn: "1d" } // Extended to 1 day since refresh token is removed
+  );
 
   const userObj = user.toObject();
   delete userObj.password;
 
-  return { token, user: userObj };
+  return { accessToken, user: userObj };
 };
