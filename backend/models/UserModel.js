@@ -1,58 +1,52 @@
 import { Schema, model } from "mongoose";
 
-const enrollmentSchema = new Schema({
-  course: {
-    type: Schema.Types.ObjectId,
-    ref: "course",
-  },
-  enrolledAt: {
-    type: Date,
-    default: Date.now,
-  },
-});
-// create schema
 const userSchema = new Schema(
   {
     firstName: {
       type: String,
-      // name must be rerquired and print a custom msg if not
       required: [true, "first name is required"],
       minLength: 3,
+      trim: true,
     },
     lastName: {
       type: String,
-      required: [true, "last name name is required"],
-      minLength: 4,
+      required: [true, "last name is required"],
+      minLength: 3,
+      trim: true,
     },
     email: {
       type: String,
       required: [true, "email is required"],
-      unique: [true, "email already existed"],
+      unique: true,
+      lowercase: true,
+      trim: true,
     },
     password: {
       type: String,
-      required: [true, "invalid password"],
+      required: [true, "password is required"],
       minLength: 6,
     },
     role: {
       type: String,
       enum: ["STUDENT", "INSTRUCTOR", "ADMIN"],
-      required: [true, "{Value} is an invalid role"],
+      required: true,
     },
     profileImageUrl: {
       type: String,
+      default: "",
     },
     isActive: {
       type: Boolean,
       default: true,
     },
-    enrollments: [enrollmentSchema],
   },
   {
     timestamps: true,
-    strict: "throw",
     versionKey: false,
-  },
+  }
 );
-// create model and export
+
+// Indexing for faster login lookups
+userSchema.index({ email: 1 });
+
 export const UserTypeModel = model("user", userSchema);

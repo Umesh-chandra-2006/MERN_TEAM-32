@@ -1,22 +1,23 @@
 import { Schema, model } from "mongoose";
 
-const reviewSchema = new Schema({
-  user: {
-    type: Schema.Types.ObjectId,
-    ref: "user",
-  },
-  rating: {
-    type: Number,
-    min: 1,
-    max: 5,
-  },
-  comment: String,
-});
-
 const lectureSchema = new Schema({
-  title: String,
-  videoUrl: String,
-  duration: Number,
+  title: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+  videoUrl: {
+    type: String,
+    default: "",
+  },
+  duration: {
+    type: Number,
+    default: 0,
+  },
+  order: {
+    type: Number,
+    default: 0,
+  }
 });
 
 const CourseSchema = new Schema(
@@ -25,63 +26,59 @@ const CourseSchema = new Schema(
       type: Schema.Types.ObjectId,
       ref: "user",
       required: true,
+      index: true,
     },
-
     title: {
       type: String,
       required: true,
+      trim: true,
       index: true,
     },
-
     category: {
       type: String,
       required: true,
       index: true,
     },
-
     description: {
       type: String,
       required: true,
     },
-
+    thumbnailUrl: {
+      type: String,
+      default: "",
+    },
     lectures: [lectureSchema],
-
-    enrolledStudents: [
-      {
-        type: Schema.Types.ObjectId,
-        ref: "user",
-      },
-    ],
-
-    progress: [
-      {
-        user: {
-          type: Schema.Types.ObjectId,
-          ref: "user",
-        },
-        completedLectures: [Number],
-      },
-    ],
-
-    reviews: [reviewSchema],
-
+    price: {
+      type: Number,
+      default: 0,
+    },
+    isCourseActive: {
+      type: Boolean,
+      default: true,
+      index: true,
+    },
+    // Denormalized fields for performance (read-heavy optimization)
+    totalStudents: {
+      type: Number,
+      default: 0,
+    },
     averageRating: {
       type: Number,
       default: 0,
     },
-
-    isCourseActive: {
-      type: Boolean,
-      default: true,
+    totalReviews: {
+      type: Number,
+      default: 0,
     },
   },
   {
     timestamps: true,
-    strict: "throw",
     versionKey: false,
-  },
+  }
 );
 
+// Compound index for category-based filtering of active courses
+CourseSchema.index({ category: 1, isCourseActive: 1 });
+CourseSchema.index({ title: "text", description: "text" });
+
 export const CourseTypeModel = model("course", CourseSchema);
-
-

@@ -1,7 +1,7 @@
+import React, { useState } from "react";
 import { useForm } from "react-hook-form";
-import { useState } from "react";
 import axios from "axios";
-import { useNavigate } from "react-router";
+import { useNavigate, Link } from "react-router";
 import { toast } from "react-hot-toast";
 
 function Register() {
@@ -9,6 +9,7 @@ function Register() {
     register,
     handleSubmit,
     formState: { errors },
+    watch
   } = useForm({
     defaultValues: {
       role: "STUDENT"
@@ -17,6 +18,7 @@ function Register() {
 
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const selectedRole = watch("role");
 
   const onRegister = async (newUser) => {
     setLoading(true);
@@ -41,87 +43,100 @@ function Register() {
   };
 
   return (
-    <div className="mt-15 p-4 w-96 mx-auto text-center">
-      <h1 className="text-2xl mb-4 font-semibold">Registration Form</h1>
-      <div className="p-6 bg-white shadow-md rounded-lg border border-gray-200">
-        <form onSubmit={handleSubmit(onRegister)} className="space-y-4">
-          {/* Role Selection */}
-          <div className="flex justify-center gap-4 mb-4">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="radio"
-                value="STUDENT"
-                {...register("role")}
-                className="w-4 h-4 text-blue-600"
-              />
-              <span className="text-gray-700">Student</span>
+    <div className="min-h-[90vh] flex items-center justify-center px-4 sm:px-6 lg:px-8 py-12">
+      <div className="max-w-xl w-full space-y-8 bg-white p-10 rounded-[2.5rem] shadow-2xl shadow-blue-50 border border-gray-100">
+        <div>
+          <h2 className="text-center text-4xl font-black text-gray-900 tracking-tight">
+            Create Account
+          </h2>
+          <p className="mt-2 text-center text-sm text-gray-500 font-medium">
+            Already have an account?{" "}
+            <Link to="/login" className="font-bold text-blue-600 hover:text-blue-500 transition-colors">
+              Sign in here
+            </Link>
+          </p>
+        </div>
+
+        <form onSubmit={handleSubmit(onRegister)} className="mt-8 space-y-6">
+          {/* Role Selection Tabs */}
+          <div className="flex p-1 bg-gray-100 rounded-2xl">
+            <label className={`flex-1 flex items-center justify-center py-3 rounded-xl cursor-pointer transition-all ${selectedRole === "STUDENT" ? "bg-white shadow-sm text-blue-600 font-bold" : "text-gray-500 font-medium hover:text-gray-700"}`}>
+              <input type="radio" value="STUDENT" {...register("role")} className="hidden" />
+              Student
             </label>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="radio"
-                value="INSTRUCTOR"
-                {...register("role")}
-                className="w-4 h-4 text-blue-600"
-              />
-              <span className="text-gray-700">Instructor</span>
+            <label className={`flex-1 flex items-center justify-center py-3 rounded-xl cursor-pointer transition-all ${selectedRole === "INSTRUCTOR" ? "bg-white shadow-sm text-blue-600 font-bold" : "text-gray-500 font-medium hover:text-gray-700"}`}>
+              <input type="radio" value="INSTRUCTOR" {...register("role")} className="hidden" />
+              Instructor
             </label>
           </div>
 
-          <div className="space-y-1 text-left">
-            <input
-              type="text"
-              {...register("firstName", { required: "First name is required", minLength: { value: 3, message: "Min length 3" } })}
-              placeholder="First Name"
-              className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            {errors.firstName && <p className="text-red-500 text-xs">{errors.firstName.message}</p>}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="block text-sm font-bold text-gray-700 mb-1 ml-1">First Name</label>
+              <input
+                type="text"
+                {...register("firstName", { required: "Required", minLength: { value: 3, message: "Min 3 chars" } })}
+                placeholder="John"
+                className="w-full px-4 py-3 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all font-medium bg-gray-50/50"
+              />
+              {errors.firstName && <p className="text-red-500 text-[10px] font-bold ml-1">{errors.firstName.message}</p>}
+            </div>
+
+            <div className="space-y-1">
+              <label className="block text-sm font-bold text-gray-700 mb-1 ml-1">Last Name</label>
+              <input
+                type="text"
+                {...register("lastName", { required: "Required", minLength: { value: 3, message: "Min 3 chars" } })}
+                placeholder="Doe"
+                className="w-full px-4 py-3 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all font-medium bg-gray-50/50"
+              />
+              {errors.lastName && <p className="text-red-500 text-[10px] font-bold ml-1">{errors.lastName.message}</p>}
+            </div>
           </div>
 
-          <div className="space-y-1 text-left">
-            <input
-              type="text"
-              {...register("lastName", { required: "Last name is required", minLength: { value: 3, message: "Min length 3" } })}
-              placeholder="Last Name"
-              className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            {errors.lastName && <p className="text-red-500 text-xs">{errors.lastName.message}</p>}
-          </div>
-
-          <div className="space-y-1 text-left">
+          <div className="space-y-1">
+            <label className="block text-sm font-bold text-gray-700 mb-1 ml-1">Email Address</label>
             <input
               type="email"
               {...register("email", { required: "Email is required" })}
-              placeholder="Email"
-              className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="john@example.com"
+              className="w-full px-4 py-3 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all font-medium bg-gray-50/50"
             />
-            {errors.email && <p className="text-red-500 text-xs">{errors.email.message}</p>}
+            {errors.email && <p className="text-red-500 text-[10px] font-bold ml-1">{errors.email.message}</p>}
           </div>
 
-          <div className="space-y-1 text-left">
+          <div className="space-y-1">
+            <label className="block text-sm font-bold text-gray-700 mb-1 ml-1">Password</label>
             <input
               type="password"
-              {...register("password", { required: "Password is required", minLength: { value: 6, message: "Min length 6" } })}
-              placeholder="Password"
-              className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+              {...register("password", { required: "Required", minLength: { value: 6, message: "Min 6 chars" } })}
+              placeholder="••••••••"
+              className="w-full px-4 py-3 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all font-medium bg-gray-50/50"
             />
-            {errors.password && <p className="text-red-500 text-xs">{errors.password.message}</p>}
+            {errors.password && <p className="text-red-500 text-[10px] font-bold ml-1">{errors.password.message}</p>}
           </div>
 
-          <div className="space-y-1 text-left">
+          <div className="space-y-1">
+            <label className="block text-sm font-bold text-gray-700 mb-1 ml-1">Profile Image URL (Optional)</label>
             <input
               type="text"
               {...register("profileImageUrl")}
-              placeholder="Profile Image URL"
-              className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="https://example.com/photo.jpg"
+              className="w-full px-4 py-3 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all font-medium bg-gray-50/50"
             />
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-2 bg-blue-600 text-white rounded font-medium hover:bg-blue-700 disabled:bg-blue-300 transition-colors"
+            className={`w-full py-4 bg-blue-600 text-white rounded-2xl font-black hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 active:scale-95 flex items-center justify-center ${loading ? "opacity-70 cursor-not-allowed" : ""}`}
           >
-            {loading ? "Registering..." : "Register"}
+            {loading ? (
+              <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            ) : "Create Account"}
           </button>
         </form>
       </div>

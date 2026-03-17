@@ -7,6 +7,7 @@ import { Toaster } from "react-hot-toast";
 import UserDashboard from "./components/UserDashboard";
 import InstructorDashboard from "./components/InstructorDashboard";
 import AdminDashboard from "./components/AdminDashboard";
+import CourseDetails from "./components/CourseDetails";
 import { useAuth } from "./store/useAuth";
 import { useEffect } from "react";
 
@@ -45,6 +46,10 @@ function App() {
         {
           path: "admin-dashboard",
           element: <AdminDashboard />,
+        },
+        {
+          path: "course/:courseId",
+          element: <CourseDetails />,
         },
       ],
     },

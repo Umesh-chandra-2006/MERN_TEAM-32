@@ -1,33 +1,56 @@
-POST http://localhost:6000/instructor-api/users
+### 1. Register a New Instructor
+POST http://localhost:3000/instructor-api/users
 Content-Type: application/json
 
 {
-  "firstName": "Anurag",
-  "lastName": "Sharma",
-  "email": "anurag.user1@example.com",
-  "password": "User@12345",
-  "profileImageUrl": "https://example.com/avatars/user.png"
+  "firstName": "Jane",
+  "lastName": "Doee",
+  "email": "jane.instructor@example.com",
+  "password": "Password@123",
+  "profileImageUrl": "https://example.com/avatar.png"
 }
 
-### User Register
-POST http://localhost:6000/instructor-api/courses
+### 2. Login as Instructor (This sets the 'token' cookie)
+POST http://localhost:3000/common-api/login
 Content-Type: application/json
 
 {
-  "instructorId": "69b7b8c170f021fed08563c8",
-  "title": "React Full Course",
+  "email": "jane.instructor@example.com",
+  "password": "Password@123"
+}
+
+### 3. Create a New Course (Requires being logged in)
+# Replace instructor ID with your actual ID from the register/login response
+POST http://localhost:3000/instructor-api/courses
+Content-Type: application/json
+
+{
+  "instructor": "69b8dc1842d4f339a37e2879",
+  "title": "Mastering Node.js and S3",
   "category": "Web Development",
-  "description": "Complete React from basics to advanced"
+  "description": "A comprehensive guide to backend development with AWS S3 integration.",
+  "lectures": [
+    {
+      "title": "Introduction to HLS",
+      "duration": 300
+    }
+  ]
 }
 
-### User Login
-POST http://localhost:6000/common-api/login
-Content-Type: application/json
+### 4. Upload and Transcode Video (MOCK TEST IDs)
+# Ensure you have 'test.mp4' in the backend folder
+POST http://localhost:3000/instructor-api/courses/69b8dc1842d4f339a37e287a/lectures/69b8dc18ffee92873bb216ee/video
+Content-Type: multipart/form-data; boundary=boundary
 
-{
-  "email": "anurag.user1@example.com",
-  "password": "User@12345"
- 
-}
-###
-GET http://localhost:6000/instructor-api/hello
+--boundary
+Content-Disposition: form-data; name="video"; filename="test.mp4"
+Content-Type: video/mp4
+
+< ./test.mp4
+--boundary--
+
+### 5. Verify Authentication Status
+GET http://localhost:3000/common-api/get-user
+
+### 6. Logout
+GET http://localhost:3000/common-api/logout
