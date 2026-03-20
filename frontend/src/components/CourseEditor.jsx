@@ -101,7 +101,6 @@ function CourseEditor() {
       // 2. Upload directly to S3
       setUploadingStatus({ index, progress: 0, status: "Uploading to S3..." });
       await axios.put(uploadUrl, file, {
-        headers: { "Content-Type": file.type },
         onUploadProgress: (progressEvent) => {
           const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
           setUploadingStatus(prev => ({ 

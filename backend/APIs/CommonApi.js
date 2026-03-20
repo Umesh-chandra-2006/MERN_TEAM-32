@@ -90,3 +90,5 @@ commonRouter.put("/change-password", verifyToken("STUDENT", "INSTRUCTOR", "ADMIN
 
   res.status(200).json({ message: "Password changed successfully" });
 });
+
+

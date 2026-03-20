@@ -4,7 +4,7 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import fs from "fs";
 import path from "path";
 import os from "os";
-import { Readable } from "stream";
+import { pipeline } from "stream/promises";
 
 // S3 Configuration
 const s3Config = {
@@ -23,10 +23,11 @@ const CLOUDFRONT_DOMAIN = process.env.AWS_CLOUDFRONT_DOMAIN || "";
  * Generates a presigned URL for direct S3 upload from the browser.
  */
 export const generatePresignedUploadUrl = async (s3Key) => {
+  if (!BUCKET_NAME) throw new Error("AWS_S3_BUCKET_NAME is not configured");
+  
   const command = new PutObjectCommand({
     Bucket: BUCKET_NAME,
     Key: s3Key,
-    // ContentType: "video/*" // Optional: restrict to videos
   });
   
   // URL expires in 15 minutes
@@ -35,12 +36,16 @@ export const generatePresignedUploadUrl = async (s3Key) => {
 
 /**
  * Transcodes a raw video (from S3) to HLS and uploads segments back to S3.
- * inputS3Key: The location of the raw video in S3.
  */
 export const processS3VideoToHLS = async (inputS3Key, s3KeyPrefix) => {
+  if (!BUCKET_NAME) throw new Error("AWS_S3_BUCKET_NAME is not configured");
+
   const tempId = Date.now() + "-" + Math.round(Math.random() * 1e9);
   const outputDir = path.join(os.tmpdir(), "gemini-video-transcode", tempId);
   const rawLocalPath = path.join(outputDir, "raw_video.tmp");
+
+  console.log(`[VideoService] Starting process for ${inputS3Key}`);
+  console.log(`[VideoService] Temp directory: ${outputDir}`);
 
   if (!fs.existsSync(outputDir)) {
     fs.mkdirSync(outputDir, { recursive: true });
@@ -48,22 +53,20 @@ export const processS3VideoToHLS = async (inputS3Key, s3KeyPrefix) => {
 
   try {
     // 1. Download raw file from S3 to local temp
-    console.log(`Downloading raw video from S3: ${inputS3Key}`);
-    const getObjectParams = { Bucket: BUCKET_NAME, Key: inputS3Key };
-    const { Body } = await s3Client.send(new GetObjectCommand(getObjectParams));
+    console.log(`[VideoService] Downloading from S3: ${inputS3Key}`);
+    const { Body } = await s3Client.send(new GetObjectCommand({ 
+      Bucket: BUCKET_NAME, 
+      Key: inputS3Key 
+    }));
     
-    // Convert stream to file
-    const fileStream = fs.createWriteStream(rawLocalPath);
-    await new Promise((resolve, reject) => {
-      Body.pipe(fileStream)
-        .on("error", reject)
-        .on("finish", resolve);
-    });
+    await pipeline(Body, fs.createWriteStream(rawLocalPath));
+    console.log(`[VideoService] Download complete.`);
 
     // 2. Transcode
     const hlsPlaylistFile = "playlist.m3u8";
     const hlsPlaylistPath = path.join(outputDir, hlsPlaylistFile);
 
+    console.log(`[VideoService] Starting FFmpeg transcoding...`);
     await new Promise((resolve, reject) => {
       ffmpeg(rawLocalPath)
         .outputOptions([
@@ -75,50 +78,55 @@ export const processS3VideoToHLS = async (inputS3Key, s3KeyPrefix) => {
           "-f hls",
         ])
         .output(hlsPlaylistPath)
-        .on("end", async () => {
-          console.log("Transcoding finished. Uploading to S3...");
-          try {
-            const files = fs.readdirSync(outputDir).filter(f => f !== "raw_video.tmp");
-            const uploadPromises = files.map(async (file) => {
-              const filePath = path.join(outputDir, file);
-              const fileBuffer = fs.readFileSync(filePath);
-              const uploadParams = {
-                Bucket: BUCKET_NAME,
-                Key: `${s3KeyPrefix}/${file}`,
-                Body: fileBuffer,
-                ContentType: file.endsWith(".m3u8") ? "application/x-mpegURL" : "video/MP2T",
-              };
-              return s3Client.send(new PutObjectCommand(uploadParams));
-            });
-
-            await Promise.all(uploadPromises);
-
-            const hlsUrl = CLOUDFRONT_DOMAIN 
-              ? `https://${CLOUDFRONT_DOMAIN}/${s3KeyPrefix}/${hlsPlaylistFile}`
-              : `https://${BUCKET_NAME}.s3.${s3Config.region}.amazonaws.com/${s3KeyPrefix}/${hlsPlaylistFile}`;
-            
-            resolve(hlsUrl);
-          } catch (err) {
-            reject(err);
-          }
+        .on("start", (commandLine) => {
+          console.log(`[VideoService] FFmpeg command: ${commandLine}`);
         })
-        .on("error", reject)
+        .on("end", () => {
+          console.log("[VideoService] Transcoding finished.");
+          resolve();
+        })
+        .on("error", (err) => {
+          console.error(`[VideoService] FFmpeg error: ${err.message}`);
+          reject(err);
+        })
         .run();
     });
 
-    // 3. Optional: Delete the raw file from S3 after processing
-    // await s3Client.send(new DeleteObjectCommand({ Bucket: BUCKET_NAME, Key: inputS3Key }));
+    // 3. Upload segments back to S3
+    console.log(`[VideoService] Uploading HLS segments to S3...`);
+    const files = fs.readdirSync(outputDir).filter(f => f !== "raw_video.tmp");
+    const uploadPromises = files.map(async (file) => {
+      const filePath = path.join(outputDir, file);
+      const fileBuffer = fs.readFileSync(filePath);
+      return s3Client.send(new PutObjectCommand({
+        Bucket: BUCKET_NAME,
+        Key: `${s3KeyPrefix}/${file}`,
+        Body: fileBuffer,
+        ContentType: file.endsWith(".m3u8") ? "application/x-mpegURL" : "video/MP2T",
+      }));
+    });
 
-    return { 
-      hlsUrl: CLOUDFRONT_DOMAIN 
-        ? `https://${CLOUDFRONT_DOMAIN}/${s3KeyPrefix}/${hlsPlaylistFile}`
-        : `https://${BUCKET_NAME}.s3.${s3Config.region}.amazonaws.com/${s3KeyPrefix}/${hlsPlaylistFile}`
-    };
+    await Promise.all(uploadPromises);
+    console.log(`[VideoService] All segments uploaded.`);
 
+    const hlsUrl = CLOUDFRONT_DOMAIN 
+      ? `https://${CLOUDFRONT_DOMAIN}/${s3KeyPrefix}/${hlsPlaylistFile}`
+      : `https://${BUCKET_NAME}.s3.${s3Config.region}.amazonaws.com/${s3KeyPrefix}/${hlsPlaylistFile}`;
+    
+    return { hlsUrl };
+
+  } catch (err) {
+    console.error(`[VideoService] Critical failure: ${err.message}`);
+    throw err;
   } finally {
-    // 4. Final Cleanup
+    // 4. Cleanup
     if (fs.existsSync(outputDir)) {
-      fs.rmSync(outputDir, { recursive: true, force: true });
+      try {
+        fs.rmSync(outputDir, { recursive: true, force: true });
+        console.log(`[VideoService] Cleanup complete.`);
+      } catch (cleanupErr) {
+        console.error(`[VideoService] Cleanup failed: ${cleanupErr.message}`);
+      }
     }
   }
 };
