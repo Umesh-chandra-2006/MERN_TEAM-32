@@ -111,22 +111,30 @@ function CourseEditor() {
         }
       });
 
-      // 3. Trigger Backend Processing
-      setUploadingStatus({ index, progress: 100, status: "Processing video..." });
+      // 3. Trigger Backend Processing (returns 202 - processing in background)
+      setUploadingStatus({ index, progress: 100, status: "Processing video in background..." });
       await api.post(
         `/instructor-api/courses/${courseId}/lectures/${lectureId}/process-video`,
         { s3Key }
       );
 
-      toast.success("Video uploaded and processing started!");
+      // Clear the uploading status immediately since backend will process in background
+      setUploadingStatus({ index: null, progress: 0, status: "" });
       
-      // Refresh course data
-      const res = await api.get(`/instructor-api/courses/${courseId}`);
-      reset(res.data.payload);
+      toast.success("Video uploaded! Processing in background. The page will update once complete.");
+      
+      // Optionally refresh course data after a delay to check for updates
+      setTimeout(async () => {
+        try {
+          const res = await api.get(`/instructor-api/courses/${courseId}`);
+          reset(res.data.payload);
+        } catch (_err) {
+          // Silently fail - user can refresh manually
+        }
+      }, 5000);
     } catch (err) {
       console.error(err);
       toast.error(err.response?.data?.message || "Video upload failed");
-    } finally {
       setUploadingStatus({ index: null, progress: 0, status: "" });
     }
   };
@@ -231,7 +239,7 @@ function CourseEditor() {
 
           {!isEditMode && (
             <div className="bg-blue-50 border border-blue-100 rounded-2xl p-6 mb-8 flex items-start gap-4">
-              <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center text-blue-600 flex-shrink-0">
+              <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center text-blue-600 shrink-0">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>

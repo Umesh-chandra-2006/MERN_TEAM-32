@@ -7,9 +7,7 @@ export const VideoPlayer = ({ src, options }) => {
   const playerRef = useRef(null);
 
   useEffect(() => {
-    // Make sure Video.js player is only initialized once
     if (!playerRef.current) {
-      // The Video.js player needs to be initialized with a video element
       const videoElement = document.createElement("video-js");
       videoElement.classList.add("vjs-big-play-centered");
       videoRef.current.appendChild(videoElement);
@@ -26,8 +24,6 @@ export const VideoPlayer = ({ src, options }) => {
             type: "application/x-mpegURL", // HLS
           },
         ],
-      }, () => {
-        // videojs.log("player is ready");
       }));
 
       // Set up onEnded if provided
@@ -36,13 +32,11 @@ export const VideoPlayer = ({ src, options }) => {
       }
 
     } else {
-      // Update the player source if the src prop changes
       const player = playerRef.current;
       player.src({ src: src, type: "application/x-mpegURL" });
       
-      // Update onEnded handler
       if (options?.onEnded) {
-        player.off("ended"); // Remove old listeners
+        player.off("ended");
         player.on("ended", options.onEnded);
       }
     }
@@ -59,8 +53,8 @@ export const VideoPlayer = ({ src, options }) => {
   }, []);
 
   return (
-    <div data-vjs-player className="w-full h-full">
-      <div ref={videoRef} />
+    <div data-vjs-player className="h-full w-full overflow-hidden rounded-none bg-black">
+      <div ref={videoRef} className="h-full w-full" />
     </div>
   );
 };

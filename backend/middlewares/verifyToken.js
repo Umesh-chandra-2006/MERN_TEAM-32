@@ -1,5 +1,6 @@
 import jwt from "jsonwebtoken";
 import { config } from "dotenv";
+import { UserTypeModel } from "../models/UserModel.js";
 config();
 
 export const verifyToken = (...allowedRoles) => {
@@ -13,6 +14,22 @@ export const verifyToken = (...allowedRoles) => {
 
       // Verify and decode token
       const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
+
+      const user = await UserTypeModel.findById(decodedToken.userId).select("passwordChangedAt isActive role");
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized. Please login" });
+      }
+
+      if (user.isActive === false) {
+        return res.status(403).json({ message: "Forbidden. You don't have permission" });
+      }
+
+      if (user.passwordChangedAt) {
+        const issuedAtMs = (decodedToken.iat || 0) * 1000;
+        if (issuedAtMs < user.passwordChangedAt.getTime()) {
+          return res.status(401).json({ message: "Session expired. Please login again" });
+        }
+      }
 
       // Check if role is allowed
       if (!allowedRoles.includes(decodedToken.role)) {

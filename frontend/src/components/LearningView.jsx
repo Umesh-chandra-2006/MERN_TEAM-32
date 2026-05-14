@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router";
-import axios from "axios";
 import { toast } from "react-hot-toast";
 import VideoPlayer from "./VideoPlayer";
+import { api } from "../store/useAuth";
 
 function LearningView() {
   const { courseId } = useParams();
@@ -16,9 +16,7 @@ function LearningView() {
   useEffect(() => {
     async function fetchLearningData() {
       try {
-        const res = await axios.get(`http://localhost:3000/student-api/courses/${courseId}`, {
-          withCredentials: true,
-        });
+        const res = await api.get(`/student-api/courses/${courseId}`);
         
         const courseData = res.data.payload.course;
         const enrollmentData = res.data.payload.enrollment;
@@ -52,11 +50,7 @@ function LearningView() {
 
   const markAsCompleted = async (lectureId) => {
     try {
-      const res = await axios.patch(
-        `http://localhost:3000/student-api/courses/${courseId}/lectures/${lectureId}/progress`,
-        {},
-        { withCredentials: true }
-      );
+      const res = await api.patch(`/student-api/courses/${courseId}/lectures/${lectureId}/progress`, {});
       setEnrollment(res.data.payload);
       toast.success("Progress saved!");
     } catch (err) {
@@ -66,18 +60,18 @@ function LearningView() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh]">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-600 mb-4"></div>
-        <p className="text-gray-500 font-medium">Preparing your classroom...</p>
+      <div className="flex min-h-[60vh] flex-col items-center justify-center">
+        <div className="mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-t-2 border-slate-950"></div>
+        <p className="font-medium text-slate-500">Preparing your classroom...</p>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col lg:flex-row min-h-[calc(100vh-64px)] bg-gray-900">
+    <div className="flex min-h-[calc(100vh-64px)] flex-col overflow-hidden bg-slate-950 lg:flex-row">
       {/* Main Content Area (Video) */}
-      <div className="flex-grow bg-black relative flex flex-col">
-        <div className="aspect-video w-full max-h-[70vh]">
+      <div className="relative flex grow flex-col bg-slate-950">
+        <div className="aspect-video max-h-[70vh] w-full bg-black">
           {currentLecture?.videoUrl ? (
             <VideoPlayer 
               src={currentLecture.videoUrl} 
@@ -87,8 +81,8 @@ function LearningView() {
               }} 
             />
           ) : (
-            <div className="w-full h-full flex flex-col items-center justify-center text-gray-500 gap-4 bg-gray-800">
-               <svg className="w-20 h-20 opacity-20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="flex h-full w-full flex-col items-center justify-center gap-4 bg-slate-900 text-slate-500">
+               <svg className="h-20 w-20 opacity-20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 00-2 2z" />
                </svg>
                <p className="font-bold">No video available for this lecture yet.</p>
@@ -96,31 +90,27 @@ function LearningView() {
           )}
         </div>
         
-        <div className="p-8 text-white">
-          <h1 className="text-2xl font-black mb-2 tracking-tight">{currentLecture?.title}</h1>
-          <p className="text-gray-400 text-sm font-medium">{course?.title}</p>
+        <div className="p-8 text-white lg:p-10">
+          <h1 className="mb-2 text-2xl font-black tracking-tight">{currentLecture?.title}</h1>
+          <p className="text-sm font-medium text-slate-400">{course?.title}</p>
           
-          <div className="mt-8 pt-8 border-t border-gray-800">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-              <div className="flex-grow">
-                <h2 className="text-lg font-bold mb-2 tracking-tight">Rate this course</h2>
+          <div className="mt-8 border-t border-white/10 pt-8">
+            <div className="flex flex-col justify-between gap-6 md:flex-row md:items-center">
+              <div className="grow">
+                <h2 className="mb-2 text-lg font-bold tracking-tight">Rate this course</h2>
                 <div className="flex items-center gap-1">
                   {[1, 2, 3, 4, 5].map((star) => (
                     <button
                       key={star}
                       onClick={async () => {
                         try {
-                          await axios.put(
-                            `http://localhost:3000/student-api/courses/${courseId}/reviews`,
-                            { rating: star, comment: "" },
-                            { withCredentials: true }
-                          );
+                          await api.put(`/student-api/courses/${courseId}/reviews`, { rating: star, comment: "" });
                           toast.success("Thanks for your rating!");
                         } catch (err) {
                           toast.error("Failed to submit rating");
                         }
                       }}
-                      className="p-1 hover:scale-110 transition-transform"
+                      className="p-1 transition-transform hover:scale-110"
                     >
                       <svg 
                         className={`w-8 h-8 ${star <= (course?.averageRating || 0) ? "text-amber-400 fill-current" : "text-gray-600"}`} 
@@ -132,23 +122,23 @@ function LearningView() {
                   ))}
                 </div>
               </div>
-              <div className="bg-gray-800/50 p-6 rounded-3xl border border-gray-800 flex items-center gap-4">
+              <div className="flex items-center gap-4 rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur">
                  <div className="text-center">
                     <p className="text-2xl font-black text-white">{course?.averageRating || "0.0"}</p>
-                    <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Avg Rating</p>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-400">Avg Rating</p>
                  </div>
-                 <div className="w-px h-10 bg-gray-700"></div>
+                 <div className="h-10 w-px bg-white/10"></div>
                  <div className="text-center">
                     <p className="text-2xl font-black text-white">{course?.totalStudents || "0"}</p>
-                    <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Students</p>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-400">Students</p>
                  </div>
               </div>
             </div>
           </div>
 
-          <div className="mt-8 pt-8 border-t border-gray-800">
-            <h2 className="text-lg font-bold mb-4 tracking-tight">About this lecture</h2>
-            <p className="text-gray-400 leading-relaxed">
+          <div className="mt-8 border-t border-white/10 pt-8">
+            <h2 className="mb-4 text-lg font-bold tracking-tight">About this lecture</h2>
+            <p className="leading-relaxed text-slate-400">
                {course?.description}
             </p>
           </div>
@@ -156,22 +146,22 @@ function LearningView() {
       </div>
 
       {/* Sidebar (Course Content) */}
-      <div className="w-full lg:w-96 bg-gray-900 border-l border-gray-800 flex flex-col overflow-hidden">
-        <div className="p-6 border-b border-gray-800">
-          <h2 className="text-xl font-black text-white tracking-tight mb-4">Course Content</h2>
-          <div className="w-full bg-gray-800 rounded-full h-2">
+      <div className="flex w-full flex-col overflow-hidden border-l border-white/10 bg-slate-900 lg:w-96">
+        <div className="border-b border-white/10 p-6">
+          <h2 className="mb-4 text-xl font-black tracking-tight text-white">Course Content</h2>
+          <div className="h-2 w-full rounded-full bg-white/10">
             <div 
-              className="bg-blue-600 h-2 rounded-full transition-all duration-500" 
+              className="h-2 rounded-full bg-blue-500 transition-all duration-500" 
               style={{ width: `${enrollment?.progressPercentage || 0}%` }}
             ></div>
           </div>
           <div className="flex justify-between mt-2">
-            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Progress</span>
-            <span className="text-[10px] font-bold text-blue-500 uppercase tracking-widest">{enrollment?.progressPercentage || 0}% Complete</span>
+            <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-500">Progress</span>
+            <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-blue-400">{enrollment?.progressPercentage || 0}% Complete</span>
           </div>
         </div>
 
-        <div className="flex-grow overflow-y-auto">
+        <div className="grow overflow-y-auto">
           {course?.lectures.map((lecture, index) => {
             const isCompleted = enrollment?.completedLectures.includes(lecture._id);
             const isActive = currentLecture?._id === lecture._id;
@@ -181,29 +171,29 @@ function LearningView() {
                 key={lecture._id}
                 onClick={() => handleLectureSelect(lecture)}
                 className={`p-4 flex items-start gap-4 cursor-pointer transition-all border-b border-gray-800/50 ${
-                  isActive ? "bg-gray-800" : "hover:bg-gray-800/40"
+                  isActive ? "bg-white/5" : "hover:bg-white/5"
                 }`}
               >
                 <div className="mt-1">
                   {isCompleted ? (
-                    <div className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center">
-                      <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500">
+                      <svg className="h-3 w-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
                       </svg>
                     </div>
                   ) : (
-                    <div className={`w-5 h-5 rounded-full border-2 ${isActive ? "border-blue-500" : "border-gray-700"}`}></div>
+                    <div className={`h-5 w-5 rounded-full border-2 ${isActive ? "border-blue-400" : "border-white/20"}`}></div>
                   )}
                 </div>
-                <div className="flex-grow">
-                   <p className={`text-sm font-bold leading-tight mb-1 ${isActive ? "text-blue-500" : "text-gray-300"}`}>
+                <div className="grow">
+                   <p className={`mb-1 text-sm font-bold leading-tight ${isActive ? "text-blue-400" : "text-slate-300"}`}>
                       {index + 1}. {lecture.title}
                    </p>
                    <div className="flex items-center gap-2">
-                      <svg className="w-3 h-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="h-3 w-3 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 00-2 2z" />
                       </svg>
-                      <span className="text-[10px] text-gray-500 font-medium">Video • {Math.floor(lecture.duration / 60)}m</span>
+                      <span className="text-[10px] font-medium text-slate-500">Video • {Math.floor(lecture.duration / 60)}m</span>
                    </div>
                 </div>
               </div>
@@ -211,10 +201,10 @@ function LearningView() {
           })}
         </div>
         
-        <div className="p-6 bg-gray-900 border-t border-gray-800">
+        <div className="border-t border-white/10 p-6">
            <button 
              onClick={() => navigate("/user-dashboard")}
-             className="w-full py-3 bg-gray-800 text-gray-400 rounded-xl font-bold text-sm hover:bg-gray-700 transition-all active:scale-95"
+             className="w-full rounded-xl bg-white/5 py-3 text-sm font-bold text-slate-300 transition-all active:scale-95 hover:bg-white/10"
            >
               Back to Dashboard
            </button>

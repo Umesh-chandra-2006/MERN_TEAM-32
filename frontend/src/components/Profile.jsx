@@ -26,24 +26,24 @@ function Profile() {
   };
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-12">
-      <div className="bg-white rounded-[2.5rem] shadow-xl shadow-blue-50 border border-gray-100 overflow-hidden">
-        <div className="bg-blue-600 px-8 py-12 text-white relative overflow-hidden">
+    <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6 lg:px-8">
+      <div className="overflow-hidden rounded-[2.5rem] border border-white/70 bg-white/85 shadow-[0_24px_80px_-44px_rgba(15,23,42,0.45)] backdrop-blur-xl">
+        <div className="relative overflow-hidden bg-[linear-gradient(160deg,#0f172a,#1d4ed8)] px-8 py-12 text-white">
           <div className="relative z-10">
-            <h1 className="text-3xl font-black mb-2">My Profile</h1>
-            <p className="text-blue-100 font-medium">Manage your personal information and account settings.</p>
+            <h1 className="mb-2 text-3xl font-black">My Profile</h1>
+            <p className="font-medium text-blue-100">Manage your personal information and account settings.</p>
           </div>
-          <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-20 -mt-20 blur-3xl"></div>
+          <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-white/10 blur-3xl"></div>
         </div>
         
-        <form onSubmit={handleSubmit} className="p-8 md:p-12 space-y-8">
-          <div className="flex flex-col md:flex-row gap-8 items-center md:items-start">
+        <form onSubmit={handleSubmit} className="space-y-8 p-8 md:p-12">
+          <div className="flex flex-col items-center gap-8 md:flex-row md:items-start">
              <div className="relative group">
-                <div className="w-32 h-32 rounded-[2rem] bg-blue-50 border-4 border-white shadow-xl overflow-hidden flex items-center justify-center">
+                <div className="flex h-32 w-32 items-center justify-center overflow-hidden rounded-[2rem] border-4 border-white bg-slate-50 shadow-xl shadow-slate-950/10">
                    {formData.profileImageUrl ? (
                      <img src={formData.profileImageUrl} alt="Profile" className="w-full h-full object-cover" />
                    ) : (
-                     <span className="text-4xl font-black text-blue-600">
+                     <span className="text-4xl font-black text-blue-700">
                         {currentUser?.firstName?.[0]}{currentUser?.lastName?.[0]}
                      </span>
                    )}
@@ -53,58 +53,58 @@ function Profile() {
              <div className="flex-grow space-y-6 w-full">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <label className="text-xs font-black uppercase tracking-widest text-gray-400 ml-1">First Name</label>
+                    <label className="ml-1 text-xs font-black uppercase tracking-[0.22em] text-slate-400">First Name</label>
                     <input
                       type="text"
                       name="firstName"
                       value={formData.firstName}
                       onChange={handleChange}
-                      className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all font-bold"
+                      className="w-full rounded-2xl border border-slate-200 bg-white px-5 py-4 font-bold text-slate-900 shadow-sm outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
                       required
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-xs font-black uppercase tracking-widest text-gray-400 ml-1">Last Name</label>
+                    <label className="ml-1 text-xs font-black uppercase tracking-[0.22em] text-slate-400">Last Name</label>
                     <input
                       type="text"
                       name="lastName"
                       value={formData.lastName}
                       onChange={handleChange}
-                      className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all font-bold"
+                      className="w-full rounded-2xl border border-slate-200 bg-white px-5 py-4 font-bold text-slate-900 shadow-sm outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
                       required
                     />
                   </div>
                 </div>
                 
                 <div className="space-y-2">
-                  <label className="text-xs font-black uppercase tracking-widest text-gray-400 ml-1">Email Address (Read Only)</label>
+                  <label className="ml-1 text-xs font-black uppercase tracking-[0.22em] text-slate-400">Email Address (Read Only)</label>
                   <input
                     type="email"
                     value={currentUser?.email}
                     disabled
-                    className="w-full px-5 py-4 bg-gray-100 border border-gray-100 rounded-2xl text-gray-400 font-bold cursor-not-allowed"
+                    className="w-full cursor-not-allowed rounded-2xl border border-slate-200 bg-slate-100 px-5 py-4 font-bold text-slate-400"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-xs font-black uppercase tracking-widest text-gray-400 ml-1">Profile Image URL</label>
+                  <label className="ml-1 text-xs font-black uppercase tracking-[0.22em] text-slate-400">Profile Image URL</label>
                   <input
                     type="text"
                     name="profileImageUrl"
                     value={formData.profileImageUrl}
                     onChange={handleChange}
                     placeholder="https://example.com/image.jpg"
-                    className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all font-bold"
+                    className="w-full rounded-2xl border border-slate-200 bg-white px-5 py-4 font-bold text-slate-900 shadow-sm outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
                   />
                 </div>
              </div>
           </div>
           
-          <div className="pt-8 border-t border-gray-100 flex justify-end">
+          <div className="flex justify-end border-t border-slate-100 pt-8">
             <button
               type="submit"
               disabled={loading}
-              className="px-10 py-4 bg-blue-600 text-white font-black rounded-2xl hover:bg-blue-700 transition-all shadow-xl shadow-blue-100 active:scale-95 disabled:opacity-50"
+              className="rounded-2xl bg-slate-950 px-10 py-4 font-black text-white shadow-xl shadow-slate-950/15 transition-transform hover:-translate-y-0.5 active:scale-95 disabled:opacity-50"
             >
               {loading ? "Saving..." : "Save Changes"}
             </button>

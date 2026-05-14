@@ -11,6 +11,8 @@ import CourseDetails from "./components/CourseDetails";
 import LearningView from "./components/LearningView";
 import CourseEditor from "./components/CourseEditor";
 import Profile from "./components/Profile";
+import ForgotPassword from "./components/ForgotPassword";
+import ResetPassword from "./components/ResetPassword";
 import { useAuth } from "./store/useAuth";
 import { useEffect } from "react";
 
@@ -37,6 +39,14 @@ function App() {
         {
           path: "login",
           element: <Login />,
+        },
+        {
+          path: "forgot-password",
+          element: <ForgotPassword />,
+        },
+        {
+          path: "reset-password",
+          element: <ResetPassword />,
         },
         {
           path: "user-dashboard",

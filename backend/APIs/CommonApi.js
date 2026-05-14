@@ -1,5 +1,5 @@
 import express from "express";
-import { authenticate } from "../services/authService.js";
+import { authenticate, createPasswordResetToken, resetPasswordWithToken } from "../services/authService.js";
 import { UserTypeModel } from "../models/UserModel.js";
 import { verifyToken } from "../middlewares/verifyToken.js";
 import bcrypt from "bcryptjs";
@@ -27,7 +27,11 @@ commonRouter.post("/login", async (req, res) => {
 
 //logout for User, Author and Admin
 commonRouter.get("/logout", (req, res) => {
-  res.clearCookie("token");
+  res.clearCookie("token", {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: false,
+  });
   res.status(200).json({ message: "Logged out successfully" });
 });
 
@@ -89,6 +93,50 @@ commonRouter.put("/change-password", verifyToken("STUDENT", "INSTRUCTOR", "ADMIN
   await account.save();
 
   res.status(200).json({ message: "Password changed successfully" });
+});
+
+// Request a password reset link
+commonRouter.post("/forgot-password", async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return res.status(400).json({ message: "Email is required" });
+  }
+
+  try {
+    const { resetToken } = await createPasswordResetToken(email);
+    const frontendBaseUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+    const resetUrl = `${frontendBaseUrl}/reset-password?token=${resetToken}`;
+
+    if (process.env.NODE_ENV !== "production") {
+      console.log(`[PasswordReset] Reset URL for ${email}: ${resetUrl}`);
+    }
+
+    res.status(200).json({
+      message: "Password reset link generated",
+      payload: {
+        resetLinkSent: true,
+      },
+    });
+  } catch (err) {
+    res.status(err.status || 500).json({ message: err.message || "Failed to generate reset link" });
+  }
+});
+
+// Reset password using token
+commonRouter.post("/reset-password", async (req, res) => {
+  const { token, newPassword } = req.body;
+
+  if (!token || !newPassword) {
+    return res.status(400).json({ message: "token and newPassword are required" });
+  }
+
+  try {
+    await resetPasswordWithToken(token, newPassword);
+    res.status(200).json({ message: "Password reset successfully" });
+  } catch (err) {
+    res.status(err.status || 500).json({ message: err.message || "Password reset failed" });
+  }
 });
 
 

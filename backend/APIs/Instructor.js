@@ -94,29 +94,36 @@ instructorRouter.post(
     }
 
     const s3KeyPrefix = `courses/${courseId}/lectures/${lectureId}/hls`;
+    const instructorId = req.user.userId;
 
-    try {
-      // processS3VideoToHLS handles downloading from S3, transcoding, and uploading back to S3
-      const { hlsUrl } = await processS3VideoToHLS(s3Key, s3KeyPrefix);
+    // Return 202 Accepted immediately - processing happens in background
+    res.status(202).json({
+      message: "Video processing started",
+      payload: { status: "processing" },
+    });
 
-      const updatedCourse = await CourseTypeModel.findOneAndUpdate(
-        { _id: courseId, "lectures._id": lectureId, instructor: req.user.userId },
-        { $set: { "lectures.$.videoUrl": hlsUrl } },
-        { new: true },
-      );
+    // Process video asynchronously WITHOUT awaiting in the response path
+    (async () => {
+      try {
+        console.log(`[Instructor API] Starting async video processing for ${s3Key}`);
+        
+        const { hlsUrl } = await processS3VideoToHLS(s3Key, s3KeyPrefix);
 
-      if (!updatedCourse) {
-        return res.status(404).json({ message: "Course or lecture not found" });
+        const updatedCourse = await CourseTypeModel.findOneAndUpdate(
+          { _id: courseId, "lectures._id": lectureId, instructor: instructorId },
+          { $set: { "lectures.$.videoUrl": hlsUrl } },
+          { new: true },
+        );
+
+        if (updatedCourse) {
+          console.log(`[Instructor API] Video processing completed for ${lectureId}`);
+        } else {
+          console.error(`[Instructor API] Failed to update course ${courseId}`);
+        }
+      } catch (err) {
+        console.error(`[Instructor API] Background video processing error: `, err);
       }
-
-      res.status(200).json({
-        message: "Video processing started successfully",
-        payload: { hlsUrl },
-      });
-    } catch (err) {
-      console.error("Video processing error: ", err);
-      res.status(500).json({ message: "Video processing failed", error: err.message });
-    }
+    })();
   },
 );
 

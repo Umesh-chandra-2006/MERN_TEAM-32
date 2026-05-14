@@ -3,7 +3,7 @@ import axios from "axios";
 
 // Create axios instance with base URL and credentials
 const api = axios.create({
-  baseURL: "http://localhost:3000",
+  baseURL: import.meta.env.VITE_API_URL || "http://localhost:3000",
   withCredentials: true,
 });
 
@@ -26,6 +26,7 @@ export const useAuth = create((set) => ({
   currentUser: null,
   isAuthenticated: false,
   loading: false,
+  authReady: false,
   error: null,
   login: async (userObj) => {
     set({ loading: true, error: null });
@@ -34,6 +35,7 @@ export const useAuth = create((set) => ({
       set({
         isAuthenticated: true,
         loading: false,
+        authReady: true,
         error: null,
         currentUser: response.data.payload,
       });
@@ -62,6 +64,7 @@ export const useAuth = create((set) => ({
         loading: false,
         isAuthenticated: false,
         currentUser: null,
+        authReady: true,
         error: options.silent ? null : useAuth.getState().error,
       });
     }
@@ -76,6 +79,7 @@ export const useAuth = create((set) => ({
         isAuthenticated: true,
         currentUser: response.data.payload,
         loading: false,
+        authReady: true,
         error: null,
       });
     } catch (_error) {
@@ -83,6 +87,7 @@ export const useAuth = create((set) => ({
         isAuthenticated: false,
         currentUser: null,
         loading: false,
+        authReady: true,
       });
     }
   },

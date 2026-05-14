@@ -30,8 +30,6 @@ function Header() {
 
   const defaultLinks = [
     { to: "/", label: "Home" },
-    { to: "login", label: "Login" },
-    { to: "register", label: "Register" },
   ];
 
   const roleLinks = {
@@ -55,96 +53,98 @@ function Header() {
     : defaultLinks;
 
   return (
-    <header className="bg-white border-b border-gray-100 sticky top-0 z-50 shadow-sm">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
-          {/* Logo */}
-          <div className="flex items-center">
-            <NavLink to="/" className="flex items-center gap-2">
-              <img
-                className="h-10 w-10 rounded-lg object-cover"
-                src={logo}
-                alt="Logo"
-              />
-              <span className="text-xl font-bold text-gray-900 tracking-tight">SunStk</span>
-            </NavLink>
+    <header className="sticky top-0 z-50 border-b border-slate-200/70 bg-white/80 backdrop-blur-xl backdrop-saturate-150 shadow-[0_18px_50px_-28px_rgba(15,23,42,0.35)]">
+      <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+        <NavLink to="/" className="group flex items-center gap-3">
+          <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl border border-white/70 bg-slate-950 text-white shadow-lg shadow-slate-950/20 ring-1 ring-slate-200/80">
+            <img className="h-full w-full object-cover" src={logo} alt="Logo" />
           </div>
+          <div className="leading-tight">
+            <span className="block text-lg font-black tracking-tight text-slate-950">SunStk</span>
+            <span className="block text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">Learn without friction</span>
+          </div>
+        </NavLink>
 
-          {/* Navigation */}
-          <nav className="flex items-center gap-8">
-            <ul className="flex items-center gap-6">
-              {navLinks.map((link) => (
-                <li key={link.to}>
-                  <NavLink
-                    to={link.to}
-                    className={({ isActive }) =>
-                      `text-sm font-medium transition-colors hover:text-blue-600 ${
-                        isActive ? "text-blue-600" : "text-gray-600"
-                      }`
-                    }
-                  >
-                    {link.label}
-                  </NavLink>
-                </li>
-              ))}
-            </ul>
-
-            {/* Profile Dropdown */}
-            {isAuthenticated ? (
-              <div className="relative ml-4 pl-4 border-l border-gray-200" ref={dropdownRef}>
-                <button 
-                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                  className="flex items-center gap-2 group focus:outline-none"
+        <nav className="flex items-center gap-4">
+          <ul className="hidden items-center gap-2 rounded-full border border-slate-200/80 bg-white/80 p-1 shadow-sm md:flex">
+            {navLinks.map((link) => (
+              <li key={link.to}>
+                <NavLink
+                  to={link.to}
+                  className={({ isActive }) =>
+                    `rounded-full px-4 py-2 text-sm font-semibold transition-all ${
+                      isActive
+                        ? "bg-slate-950 text-white shadow-md shadow-slate-950/15"
+                        : "text-slate-600 hover:bg-slate-100 hover:text-slate-950"
+                    }`
+                  }
                 >
-                  <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-black shadow-lg shadow-blue-100 group-hover:scale-105 transition-transform overflow-hidden border-2 border-white">
-                    {currentUser.profileImageUrl ? (
-                      <img src={currentUser.profileImageUrl} alt="Avatar" className="w-full h-full object-cover" />
-                    ) : (
-                      <span>{currentUser.firstName?.[0]}{currentUser.lastName?.[0]}</span>
-                    )}
-                  </div>
-                  <svg 
-                    className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${isDropdownOpen ? "rotate-180" : ""}`} 
-                    fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
+                  {link.label}
+                </NavLink>
+              </li>
+            ))}
+          </ul>
 
-                {/* Dropdown Menu */}
-                {isDropdownOpen && (
-                  <div className="absolute right-0 mt-3 w-56 bg-white rounded-2xl shadow-2xl border border-gray-50 py-2 z-50 animate-in fade-in zoom-in duration-200">
-                    <div className="px-4 py-3 border-b border-gray-50 mb-1">
-                      <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Signed in as</p>
-                      <p className="text-sm font-bold text-gray-900 truncate">{currentUser.firstName} {currentUser.lastName}</p>
-                    </div>
-                    
-                    <NavLink 
-                      to="/profile" 
-                      onClick={() => setIsDropdownOpen(false)}
-                      className="flex items-center gap-3 px-4 py-3 text-sm font-bold text-gray-600 hover:bg-gray-50 hover:text-blue-600 transition-colors"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                      </svg>
-                      My Profile
-                    </NavLink>
-                    
-                    <button
-                      onClick={handleLogout}
-                      className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-red-500 hover:bg-red-50 transition-colors border-t border-gray-50 mt-1"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                      </svg>
-                      Logout
-                    </button>
+          {isAuthenticated ? (
+            <div className="relative" ref={dropdownRef}>
+              <button
+                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                className="flex items-center gap-3 rounded-full border border-slate-200 bg-white px-2 py-2 pr-3 shadow-sm transition-transform hover:-translate-y-0.5"
+              >
+                <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-slate-900 to-blue-700 text-xs font-black text-white ring-2 ring-white">
+                  {currentUser.profileImageUrl ? (
+                    <img src={currentUser.profileImageUrl} alt="Avatar" className="h-full w-full object-cover" />
+                  ) : (
+                    <span>{currentUser.firstName?.[0]}{currentUser.lastName?.[0]}</span>
+                  )}
+                </div>
+                <div className="hidden text-left sm:block">
+                  <p className="text-xs font-bold text-slate-500">Signed in</p>
+                  <p className="max-w-32 truncate text-sm font-semibold text-slate-950">{currentUser.firstName} {currentUser.lastName}</p>
+                </div>
+                <svg className={`h-4 w-4 text-slate-400 transition-transform ${isDropdownOpen ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+
+              {isDropdownOpen && (
+                <div className="absolute right-0 mt-3 w-64 overflow-hidden rounded-3xl border border-slate-200 bg-white p-2 shadow-2xl shadow-slate-950/10 animate-in fade-in zoom-in duration-200">
+                  <div className="rounded-2xl bg-slate-950 px-4 py-3 text-white">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-slate-300">Account</p>
+                    <p className="mt-1 truncate text-sm font-semibold">{currentUser.firstName} {currentUser.lastName}</p>
+                    <p className="text-xs text-slate-400">{currentUser.role}</p>
                   </div>
-                )}
-              </div>
-            ) : null}
-          </nav>
-        </div>
+
+                  <NavLink
+                    to="/profile"
+                    onClick={() => setIsDropdownOpen(false)}
+                    className="mt-2 flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-100 hover:text-slate-950"
+                  >
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                    My Profile
+                  </NavLink>
+
+                  <button
+                    onClick={handleLogout}
+                    className="flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold text-rose-600 transition-colors hover:bg-rose-50"
+                  >
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                    </svg>
+                    Logout
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="hidden items-center gap-2 sm:flex">
+              <NavLink to="/login" className="rounded-full px-4 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-950">Login</NavLink>
+              <NavLink to="/register" className="rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-slate-950/15 transition-transform hover:-translate-y-0.5">Register</NavLink>
+            </div>
+          )}
+        </nav>
       </div>
     </header>
   );

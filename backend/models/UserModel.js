@@ -39,14 +39,23 @@ const userSchema = new Schema(
       type: Boolean,
       default: true,
     },
+    passwordResetToken: {
+      type: String,
+      default: null,
+    },
+    passwordResetExpires: {
+      type: Date,
+      default: null,
+    },
+    passwordChangedAt: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: true,
     versionKey: false,
   }
 );
-
-// Indexing for faster login lookups
-userSchema.index({ email: 1 });
 
 export const UserTypeModel = model("user", userSchema);
