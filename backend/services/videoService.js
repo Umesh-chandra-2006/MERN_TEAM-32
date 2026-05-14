@@ -18,6 +18,7 @@ const s3Config = {
 const s3Client = new S3Client(s3Config);
 const BUCKET_NAME = process.env.AWS_S3_BUCKET_NAME || "";
 const CLOUDFRONT_DOMAIN = process.env.AWS_CLOUDFRONT_DOMAIN || "";
+const NODE_ENV = process.env.NODE_ENV || "development";
 
 /**
  * Generates a presigned URL for direct S3 upload from the browser.
@@ -39,6 +40,12 @@ export const generatePresignedUploadUrl = async (s3Key) => {
  */
 export const processS3VideoToHLS = async (inputS3Key, s3KeyPrefix) => {
   if (!BUCKET_NAME) throw new Error("AWS_S3_BUCKET_NAME is not configured");
+
+  if (NODE_ENV === "production" && !CLOUDFRONT_DOMAIN) {
+    throw new Error(
+      "AWS_CLOUDFRONT_DOMAIN is required in production for HLS playback when S3 ACLs are disabled"
+    );
+  }
 
   const tempId = Date.now() + "-" + Math.round(Math.random() * 1e9);
   const outputDir = path.join(os.tmpdir(), "gemini-video-transcode", tempId);
@@ -109,7 +116,7 @@ export const processS3VideoToHLS = async (inputS3Key, s3KeyPrefix) => {
     await Promise.all(uploadPromises);
     console.log(`[VideoService] All segments uploaded.`);
 
-    const hlsUrl = CLOUDFRONT_DOMAIN 
+    const hlsUrl = CLOUDFRONT_DOMAIN
       ? `https://${CLOUDFRONT_DOMAIN}/${s3KeyPrefix}/${hlsPlaylistFile}`
       : `https://${BUCKET_NAME}.s3.${s3Config.region}.amazonaws.com/${s3KeyPrefix}/${hlsPlaylistFile}`;
     
