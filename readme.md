@@ -1,64 +1,95 @@
-# SUNSTK Team
+# SunStk Learning Management System (LMS)
 
-SUNSTK Team is a full-stack learning platform with role-based access for students, instructors, and admins. The app includes course browsing, enrollment, progress tracking, reviews, and video streaming support.
+A robust, full-stack Learning Management System built with the MERN stack, featuring adaptive video streaming, role-based access control, and automated video transcoding.
 
-## Roles
+## 🚀 Key Features
 
-- Student
-- Instructor
-- Admin
+- **Adaptive Video Streaming:** Automatic transcoding of raw MP4 uploads into HLS (HTTP Live Streaming) format for smooth playback.
+- **Sequential Video Queue:** Custom task queue to manage heavy FFmpeg processing without overwhelming the server.
+- **Role-Based Access Control (RBAC):** Dedicated dashboards and permissions for Students, Instructors, and Admins.
+- **Course Management:** Instructors can create courses, manage curricula, and track video processing status in real-time.
+- **Student Experience:** Interactive learning view, progress tracking, and course reviews.
+- **Security:** JWT-based authentication with HTTP-only cookies and global error handling.
 
-## Features
+## 🛠️ Tech Stack
 
-- Authentication and session handling
-- Course CRUD for instructors and admins
-- Course browsing and enrollment
-- Video streaming support
-- Progress tracking
-- Course reviews
-- Instructor dashboard for course management
-- Student dashboard for enrolled courses
+- **Frontend:** React (Vite), Tailwind CSS, Zustand, React Hook Form, Video.js.
+- **Backend:** Node.js, Express, MongoDB (Mongoose).
+- **Processing:** FFmpeg (Transcoding), SimpleVideoQueue (Task Management).
+- **Storage:** AWS S3 (Raw and HLS assets).
 
-## Tech Stack
+## 📁 Project Structure
 
-- Frontend: React, Vite, React Router, Zustand, Tailwind CSS, Axios
-- Backend: Node.js, Express, MongoDB, Mongoose, JWT, Cookie Parser
-- Media: Multer, fluent-ffmpeg, AWS S3 helpers
+```text
+D:\SUNSTK-TEAM\
+├── backend/            # Express API & Video Services
+│   ├── APIs/           # Role-based API routes
+│   ├── middlewares/    # Auth and Error middlewares
+│   ├── models/         # Mongoose Schemas
+│   ├── services/       # Video processing & Auth logic
+│   └── server.js       # Entry point
+└── frontend/           # React Application
+    ├── src/
+    │   ├── components/ # Reusable UI & Page components
+    │   ├── store/      # Zustand state management
+    │   └── App.jsx     # Routing logic
+```
 
-## Project Structure
+## ⚙️ Setup & Installation
 
-- `backend/` - Express API, database models, middleware, and services
-- `frontend/` - React client application
-- `backend/uploads/` - local upload storage, including HLS output and raw media
+### 1. Prerequisites
+- Node.js (v18+)
+- MongoDB (Local or Atlas)
+- FFmpeg installed on your system
+- AWS S3 Bucket
 
-## Setup
+### 2. Backend Setup
+```bash
+cd backend
+npm install
+```
+Create a `.env` file in the `backend` folder:
+```env
+PORT=3000
+DB_URL=your_mongodb_url
+JWT_SECRET=your_secret_key
+AWS_ACCESS_KEY_ID=your_key
+AWS_SECRET_ACCESS_KEY=your_secret
+AWS_S3_BUCKET_NAME=your_bucket
+AWS_REGION=your_region
+# Optional
+AWS_CLOUDFRONT_DOMAIN=your_cloudfront_url
+```
 
-### Backend
+### 3. Frontend Setup
+```bash
+cd frontend
+npm install
+```
+Create a `.env` file in the `frontend` folder:
+```env
+VITE_API_URL=http://localhost:3000
+```
 
-1. Install dependencies in `backend/`.
-2. Create a `.env` file with at least `DB_URL` and `PORT`.
-3. Start the server with `npm run dev`.
+## 🚀 Deployment
 
-### Frontend
+### Backend (Render/Heroku)
+- Set the Root Directory to `backend`.
+- Ensure FFmpeg is installed in the environment.
+- Update `cors` settings in `server.js` to allow your production frontend URL.
 
-1. Install dependencies in `frontend/`.
-2. Start the Vite dev server with `npm run dev`.
+### Frontend (Vercel/Netlify)
+- Set the Root Directory to `frontend`.
+- Build Command: `npm run build`.
+- Output Directory: `dist`.
+- Include a `vercel.json` for SPA routing:
+```json
+{
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+}
+```
 
-## Available Scripts
-
-### Backend
-
-- `npm start` - start the Express server
-- `npm run dev` - start the Express server in the current configuration
-
-### Frontend
-
-- `npm run dev` - start the Vite dev server
-- `npm run build` - build the production bundle
-- `npm run lint` - run ESLint
-
-## Notes
-
-- The backend expects a MongoDB connection string in `DB_URL`.
-- The default frontend origin allowed by the backend is `http://localhost:5173`.
-- Uploaded media is stored under `backend/uploads/`.
+## 🛡️ Security & Performance
+- **Global Error Handler:** Consistent API responses across all endpoints.
+- **Atomic Updates:** Surgical database updates for video statuses to prevent data loss.
+- **Thread Management:** FFmpeg is limited to 2 threads to maintain API responsiveness during processing.
