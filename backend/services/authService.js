@@ -8,8 +8,13 @@ config()
 
 //register function
 export const register = async (userObj) => {
+  // Fallback for username if not provided (fixes registration 400 errors)
+  if (!userObj.username) {
+    userObj.username = userObj.email;
+  }
   //Create document
   const userDoc = new UserTypeModel(userObj);
+
   //validate for emprty passwords
   await userDoc.validate();
   //hash and replace plain password

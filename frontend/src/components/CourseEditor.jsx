@@ -13,6 +13,7 @@ function CourseEditor() {
   const [loading, setLoading] = useState(isEditMode);
   const [saving, setSaving] = useState(false);
   const [uploadingStatus, setUploadingStatus] = useState({ index: null, progress: 0, status: "" });
+  const [pollingLectures, setPollingLectures] = useState([]);
 
   const {
     register,
@@ -20,6 +21,7 @@ function CourseEditor() {
     control,
     reset,
     setValue,
+    getValues,
     watch,
     formState: { errors },
   } = useForm({
@@ -30,7 +32,7 @@ function CourseEditor() {
       thumbnailUrl: "",
       price: 0,
       status: "DRAFT",
-      lectures: [{ title: "", duration: 0 }],
+      lectures: [{ title: "", duration: 0, processingStatus: "pending" }],
     },
   });
 
@@ -47,6 +49,14 @@ function CourseEditor() {
         try {
           const res = await api.get(`/instructor-api/courses/${courseId}`);
           reset(res.data.payload);
+          
+          // Identify lectures that are currently processing
+          const processingIds = res.data.payload.lectures
+            .filter(l => l.processingStatus === "processing")
+            .map(l => l._id);
+          if (processingIds.length > 0) {
+            setPollingLectures(processingIds);
+          }
         } catch (_err) {
           toast.error("Failed to load course");
           navigate("/instructor-dashboard");
@@ -57,6 +67,54 @@ function CourseEditor() {
       fetchCourse();
     }
   }, [courseId, isEditMode, reset, navigate]);
+
+  // Polling logic for video processing
+  useEffect(() => {
+    if (pollingLectures.length === 0) return;
+
+    const intervalId = setInterval(async () => {
+      const updatedPolling = [...pollingLectures];
+      let hasChanges = false;
+
+      for (const lectureId of pollingLectures) {
+        try {
+          const res = await api.get(`/instructor-api/courses/${courseId}/lectures/${lectureId}/status`);
+          const { processingStatus, videoUrl } = res.data.payload;
+
+          if (processingStatus !== "processing") {
+            // Update form state surgically
+            const currentLectures = getValues("lectures");
+            const lectureIndex = currentLectures.findIndex(l => l._id === lectureId);
+            if (lectureIndex !== -1) {
+              setValue(`lectures.${lectureIndex}.processingStatus`, processingStatus);
+              setValue(`lectures.${lectureIndex}.videoUrl`, videoUrl);
+            }
+
+            // Remove from polling
+            const indexToRemove = updatedPolling.indexOf(lectureId);
+            if (indexToRemove !== -1) {
+              updatedPolling.splice(indexToRemove, 1);
+              hasChanges = true;
+            }
+
+            if (processingStatus === "completed") {
+              toast.success("Video processing complete!");
+            } else if (processingStatus === "failed") {
+              toast.error("Video processing failed.");
+            }
+          }
+        } catch (err) {
+          console.error("Polling error:", err);
+        }
+      }
+
+      if (hasChanges) {
+        setPollingLectures(updatedPolling);
+      }
+    }, 5000);
+
+    return () => clearInterval(intervalId);
+  }, [pollingLectures, courseId, setValue, getValues]);
 
   const onSubmit = async (data) => {
     setSaving(true);
@@ -72,6 +130,12 @@ function CourseEditor() {
         if (data.status === "PUBLISHED") {
           navigate("/instructor-dashboard");
         } else {
+          // Identify newly added processing lectures after save
+          const processingIds = res.data.payload.lectures
+            .filter(l => l.processingStatus === "processing")
+            .map(l => l._id);
+          setPollingLectures(prev => [...new Set([...prev, ...processingIds])]);
+          
           reset(res.data.payload);
         }
       }
@@ -112,32 +176,30 @@ function CourseEditor() {
       });
 
       // 3. Trigger Backend Processing (returns 202 - processing in background)
-      setUploadingStatus({ index, progress: 100, status: "Processing video in background..." });
+      setUploadingStatus({ index, progress: 100, status: "Starting background processing..." });
       await api.post(
         `/instructor-api/courses/${courseId}/lectures/${lectureId}/process-video`,
         { s3Key }
       );
 
-      // Clear the uploading status immediately since backend will process in background
+      // Start polling for this lecture
+      setPollingLectures(prev => [...new Set([...prev, lectureId])]);
+      
+      // Update local form state to processing
+      setValue(`lectures.${index}.processingStatus`, "processing");
+
+      // Clear the uploading status
       setUploadingStatus({ index: null, progress: 0, status: "" });
       
-      toast.success("Video uploaded! Processing in background. The page will update once complete.");
+      toast.success("Upload successful! Video is being processed.");
       
-      // Optionally refresh course data after a delay to check for updates
-      setTimeout(async () => {
-        try {
-          const res = await api.get(`/instructor-api/courses/${courseId}`);
-          reset(res.data.payload);
-        } catch (_err) {
-          // Silently fail - user can refresh manually
-        }
-      }, 5000);
     } catch (err) {
       console.error(err);
       toast.error(err.response?.data?.message || "Video upload failed");
       setUploadingStatus({ index: null, progress: 0, status: "" });
     }
   };
+
 
   if (loading) {
     return (
@@ -294,21 +356,51 @@ function CourseEditor() {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 00-2 2z" />
                           </svg>
                         </div>
-                        <span className="text-sm text-gray-500 font-medium">
-                          {field.videoUrl ? "Video uploaded" : "No video uploaded yet"}
-                        </span>
+                        <div className="flex flex-col">
+                          <span className="text-sm text-gray-700 font-bold">
+                            {watch(`lectures.${index}.processingStatus`) === "completed" ? "Video Ready" : 
+                             watch(`lectures.${index}.processingStatus`) === "processing" ? "Transcoding..." :
+                             watch(`lectures.${index}.processingStatus`) === "failed" ? "Processing Failed" :
+                             "No video uploaded"}
+                          </span>
+                          <span className="text-xs text-gray-400 font-medium">
+                            {watch(`lectures.${index}.processingStatus`) === "completed" ? "HLS stream active" : 
+                             watch(`lectures.${index}.processingStatus`) === "processing" ? "Converting to adaptive stream" :
+                             watch(`lectures.${index}.processingStatus`) === "failed" ? "Try uploading again" :
+                             "Upload a raw .mp4 file"}
+                          </span>
+                        </div>
                       </div>
-                      <label className={`cursor-pointer px-4 py-2 rounded-xl text-xs font-bold transition-all ${uploadingStatus.index === index ? "bg-gray-100 text-gray-400 cursor-not-allowed" : "bg-white border border-gray-200 text-gray-700 hover:border-blue-500 hover:text-blue-600 shadow-sm"}`}>
-                        {uploadingStatus.index === index ? "Processing..." : "Upload Video"}
-                        <input
-                          type="file"
-                          accept="video/*"
-                          className="hidden"
-                          onChange={(e) => handleVideoUpload(index, field._id, e.target.files[0])}
-                          disabled={uploadingStatus.index !== null}
-                        />
-                      </label>
+
+                      <div className="flex items-center gap-3">
+                        {/* Status Badge */}
+                        {watch(`lectures.${index}.processingStatus`) && watch(`lectures.${index}.processingStatus`) !== "pending" && (
+                          <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter ${
+                            watch(`lectures.${index}.processingStatus`) === "completed" ? "bg-green-100 text-green-600" :
+                            watch(`lectures.${index}.processingStatus`) === "processing" ? "bg-blue-100 text-blue-600 animate-pulse" :
+                            "bg-red-100 text-red-600"
+                          }`}>
+                            {watch(`lectures.${index}.processingStatus`)}
+                          </span>
+                        )}
+
+                        <label className={`cursor-pointer px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                          uploadingStatus.index === index || watch(`lectures.${index}.processingStatus`) === "processing" 
+                          ? "bg-gray-100 text-gray-400 cursor-not-allowed" 
+                          : "bg-white border border-gray-200 text-gray-700 hover:border-blue-500 hover:text-blue-600 shadow-sm"
+                        }`}>
+                          {watch(`lectures.${index}.processingStatus`) === "completed" ? "Replace Video" : "Upload Video"}
+                          <input
+                            type="file"
+                            accept="video/*"
+                            className="hidden"
+                            onChange={(e) => handleVideoUpload(index, field._id, e.target.files[0])}
+                            disabled={uploadingStatus.index !== null || watch(`lectures.${index}.processingStatus`) === "processing"}
+                          />
+                        </label>
+                      </div>
                     </div>
+
                     
                     {uploadingStatus.index === index && (
                       <div className="space-y-2">

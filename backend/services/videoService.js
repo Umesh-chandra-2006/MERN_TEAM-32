@@ -1,5 +1,5 @@
 import ffmpeg from "fluent-ffmpeg";
-import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, GetObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import fs from "fs";
 import path from "path";
@@ -47,6 +47,16 @@ export const processS3VideoToHLS = async (inputS3Key, s3KeyPrefix) => {
     );
   }
 
+  // 0. Verify file exists in S3 before starting
+  try {
+    await s3Client.send(new HeadObjectCommand({
+      Bucket: BUCKET_NAME,
+      Key: inputS3Key
+    }));
+  } catch (err) {
+    throw new Error(`Input file not found in S3: ${inputS3Key}`);
+  }
+
   const tempId = Date.now() + "-" + Math.round(Math.random() * 1e9);
   const outputDir = path.join(os.tmpdir(), "gemini-video-transcode", tempId);
   const rawLocalPath = path.join(outputDir, "raw_video.tmp");
@@ -83,6 +93,7 @@ export const processS3VideoToHLS = async (inputS3Key, s3KeyPrefix) => {
           "-hls_time 10",
           "-hls_list_size 0",
           "-f hls",
+          "-threads 2" // Limit threads to prevent CPU exhaustion
         ])
         .output(hlsPlaylistPath)
         .on("start", (commandLine) => {
@@ -137,3 +148,4 @@ export const processS3VideoToHLS = async (inputS3Key, s3KeyPrefix) => {
     }
   }
 };
+

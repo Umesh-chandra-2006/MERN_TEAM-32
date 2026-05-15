@@ -18,7 +18,7 @@ studentRoute.post("/users", async (req, res) => {
 // Read all active courses (with search and filter)
 studentRoute.get("/courses", verifyToken("STUDENT", "INSTRUCTOR", "ADMIN"), async (req, res) => {
   const { q, category, limit } = req.query;
-  let filter = { isCourseActive: true };
+  let filter = { isCourseActive: true, status: "PUBLISHED" };
 
   if (q) {
     filter.$or = [
@@ -50,29 +50,22 @@ studentRoute.post("/courses/:courseId/enroll", verifyToken("STUDENT"), async (re
   const { courseId } = req.params;
   const studentId = req.user.userId;
 
-  try {
-    // Check if course exists
-    const course = await CourseTypeModel.findById(courseId);
-    if (!course || !course.isCourseActive) {
-      return res.status(404).json({ message: "Course not found" });
-    }
-
-    // Create enrollment
-    const enrollment = await EnrollmentModel.create({
-      student: studentId,
-      course: courseId,
-    });
-
-    // Increment total students in course
-    await CourseTypeModel.findByIdAndUpdate(courseId, { $inc: { totalStudents: 1 } });
-
-    res.status(201).json({ message: "Enrolled successfully", payload: enrollment });
-  } catch (err) {
-    if (err.code === 11000) {
-      return res.status(400).json({ message: "Already enrolled in this course" });
-    }
-    throw err;
+  // Check if course exists
+  const course = await CourseTypeModel.findById(courseId);
+  if (!course || !course.isCourseActive) {
+    return res.status(404).json({ message: "Course not found" });
   }
+
+  // Create enrollment (duplicate handled by mongoose error if any)
+  const enrollment = await EnrollmentModel.create({
+    student: studentId,
+    course: courseId,
+  });
+
+  // Increment total students in course
+  await CourseTypeModel.findByIdAndUpdate(courseId, { $inc: { totalStudents: 1 } });
+
+  res.status(201).json({ message: "Enrolled successfully", payload: enrollment });
 });
 
 // Get my enrolled courses

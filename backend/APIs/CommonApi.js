@@ -3,6 +3,7 @@ import { authenticate, createPasswordResetToken, resetPasswordWithToken } from "
 import { UserTypeModel } from "../models/UserModel.js";
 import { verifyToken } from "../middlewares/verifyToken.js";
 import bcrypt from "bcryptjs";
+
 export const commonRouter = express.Router();
 
 // Helper to set cookies
@@ -37,15 +38,11 @@ commonRouter.get("/logout", (req, res) => {
 
 //Check authentication status
 commonRouter.get("/get-user", verifyToken("STUDENT", "INSTRUCTOR", "ADMIN"), async (req, res) => {
-  try {
-    const user = await UserTypeModel.findById(req.user.userId).select("-password");
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-    res.status(200).json({ message: "User found", payload: user });
-  } catch (err) {
-    res.status(500).json({ message: "Internal server error" });
+  const user = await UserTypeModel.findById(req.user.userId).select("-password");
+  if (!user) {
+    return res.status(404).json({ message: "User not found" });
   }
+  res.status(200).json({ message: "User found", payload: user });
 });
 
 // Get profile
@@ -103,24 +100,20 @@ commonRouter.post("/forgot-password", async (req, res) => {
     return res.status(400).json({ message: "Email is required" });
   }
 
-  try {
-    const { resetToken } = await createPasswordResetToken(email);
-    const frontendBaseUrl = process.env.FRONTEND_URL || "http://localhost:5173";
-    const resetUrl = `${frontendBaseUrl}/reset-password?token=${resetToken}`;
+  const { resetToken } = await createPasswordResetToken(email);
+  const frontendBaseUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+  const resetUrl = `${frontendBaseUrl}/reset-password?token=${resetToken}`;
 
-    if (process.env.NODE_ENV !== "production") {
-      console.log(`[PasswordReset] Reset URL for ${email}: ${resetUrl}`);
-    }
-
-    res.status(200).json({
-      message: "Password reset link generated",
-      payload: {
-        resetLinkSent: true,
-      },
-    });
-  } catch (err) {
-    res.status(err.status || 500).json({ message: err.message || "Failed to generate reset link" });
+  if (process.env.NODE_ENV !== "production") {
+    console.log(`[PasswordReset] Reset URL for ${email}: ${resetUrl}`);
   }
+
+  res.status(200).json({
+    message: "Password reset link generated",
+    payload: {
+      resetLinkSent: true,
+    },
+  });
 });
 
 // Reset password using token
@@ -131,12 +124,6 @@ commonRouter.post("/reset-password", async (req, res) => {
     return res.status(400).json({ message: "token and newPassword are required" });
   }
 
-  try {
-    await resetPasswordWithToken(token, newPassword);
-    res.status(200).json({ message: "Password reset successfully" });
-  } catch (err) {
-    res.status(err.status || 500).json({ message: err.message || "Password reset failed" });
-  }
+  await resetPasswordWithToken(token, newPassword);
+  res.status(200).json({ message: "Password reset successfully" });
 });
-
-

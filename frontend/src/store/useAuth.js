@@ -28,10 +28,10 @@ export const useAuth = create((set) => ({
   loading: false,
   authReady: false,
   error: null,
-  login: async (userObj) => {
+  login: async (userCred) => {
     set({ loading: true, error: null });
     try {
-      let response = await api.post("/common-api/login", userObj);
+      let response = await api.post("/common-api/login", userCred);
       set({
         isAuthenticated: true,
         loading: false,

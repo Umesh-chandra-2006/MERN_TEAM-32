@@ -10,6 +10,11 @@ const lectureSchema = new Schema({
     type: String,
     default: "",
   },
+  processingStatus: {
+    type: String,
+    enum: ["pending", "uploading", "processing", "completed", "failed"],
+    default: "pending",
+  },
   duration: {
     type: Number,
     default: 0,

@@ -3,6 +3,7 @@ import { register } from "../services/authService.js";
 import { verifyToken } from "../middlewares/verifyToken.js";
 import { CourseTypeModel } from "../models/CourseModel.js";
 import { processS3VideoToHLS, generatePresignedUploadUrl } from "../services/videoService.js";
+import { videoQueue } from "../services/videoQueue.js";
 
 export const instructorRouter = express.Router();
 
@@ -69,15 +70,11 @@ instructorRouter.get(
     const { courseId, lectureId } = req.params;
     const s3Key = `courses/${courseId}/lectures/${lectureId}/raw-video-${Date.now()}.mp4`;
     
-    try {
-      const uploadUrl = await generatePresignedUploadUrl(s3Key);
-      res.status(200).json({ 
-        message: "Presigned URL generated", 
-        payload: { uploadUrl, s3Key } 
-      });
-    } catch (err) {
-      res.status(500).json({ message: "Failed to generate upload URL", error: err.message });
-    }
+    const uploadUrl = await generatePresignedUploadUrl(s3Key);
+    res.status(200).json({ 
+      message: "Presigned URL generated", 
+      payload: { uploadUrl, s3Key } 
+    });
   }
 );
 
@@ -96,34 +93,51 @@ instructorRouter.post(
     const s3KeyPrefix = `courses/${courseId}/lectures/${lectureId}/hls`;
     const instructorId = req.user.userId;
 
-    // Return 202 Accepted immediately - processing happens in background
-    res.status(202).json({
-      message: "Video processing started",
-      payload: { status: "processing" },
+    // Update status to processing
+    await CourseTypeModel.findOneAndUpdate(
+      { _id: courseId, "lectures._id": lectureId, instructor: instructorId },
+      { $set: { "lectures.$.processingStatus": "processing" } }
+    );
+
+    // Add to task queue for sequential processing
+    videoQueue.add({
+      s3Key,
+      s3KeyPrefix,
+      courseId,
+      lectureId,
+      instructorId
     });
 
-    // Process video asynchronously WITHOUT awaiting in the response path
-    (async () => {
-      try {
-        console.log(`[Instructor API] Starting async video processing for ${s3Key}`);
-        
-        const { hlsUrl } = await processS3VideoToHLS(s3Key, s3KeyPrefix);
-
-        const updatedCourse = await CourseTypeModel.findOneAndUpdate(
-          { _id: courseId, "lectures._id": lectureId, instructor: instructorId },
-          { $set: { "lectures.$.videoUrl": hlsUrl } },
-          { new: true },
-        );
-
-        if (updatedCourse) {
-          console.log(`[Instructor API] Video processing completed for ${lectureId}`);
-        } else {
-          console.error(`[Instructor API] Failed to update course ${courseId}`);
-        }
-      } catch (err) {
-        console.error(`[Instructor API] Background video processing error: `, err);
-      }
-    })();
+    res.status(202).json({
+      message: "Video added to processing queue",
+      payload: { status: "processing" },
+    });
   },
 );
 
+// New endpoint to poll processing status
+instructorRouter.get(
+  "/courses/:courseId/lectures/:lectureId/status",
+  verifyToken("INSTRUCTOR"),
+  async (req, res) => {
+    const { courseId, lectureId } = req.params;
+    const instructorId = req.user.userId;
+
+    const course = await CourseTypeModel.findOne(
+      { _id: courseId, "lectures._id": lectureId, instructor: instructorId },
+      { "lectures.$": 1 }
+    );
+
+    if (!course || !course.lectures[0]) {
+      return res.status(404).json({ message: "Lecture not found" });
+    }
+
+    res.status(200).json({ 
+      message: "Status fetched", 
+      payload: { 
+        processingStatus: course.lectures[0].processingStatus,
+        videoUrl: course.lectures[0].videoUrl 
+      } 
+    });
+  }
+);
